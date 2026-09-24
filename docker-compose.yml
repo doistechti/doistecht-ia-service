@@ -7,6 +7,13 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-ia_service}
+      DB_USERNAME: ${DB_USERNAME:-ia_service}
+      DB_PASSWORD: ${DB_PASSWORD:-ia_service}
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080'"]
       interval: 10s
@@ -14,3 +21,25 @@ services:
       retries: 10
       start_period: 20s
     restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: ia-service-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ia_service}
+      POSTGRES_USER: ${DB_USERNAME:-ia_service}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ia_service}
+    ports:
+      # 5433 no host para não conflitar com um PostgreSQL local na 5432
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres-data:

@@ -104,7 +104,7 @@ ia-service:
 
 ## Critérios de aceite
 
-- [ ] `docker compose up` sobe o serviço sem passos manuais além do `.env`.
+- [x] `docker compose up` sobe o serviço sem passos manuais além do `.env`.
 - [ ] `POST /v1/chat` com chave válida retorna a resposta do Gemini.
 - [x] Requisição sem chave ou com chave inválida retorna `401`.
 - [x] Requisição com `message` vazia retorna `400` em formato `ProblemDetail`.
@@ -115,7 +115,8 @@ ia-service:
 
 Implementada. Todas as tarefas concluídas e 6 testes automatizados passando (`ChatControllerTest` + carga do contexto).
 Validado localmente com o jar: health, Swagger, `401`, `400` com a lista de campos inválidos, e `502` quando o Gemini recusa a chamada.
-**Pendente:** validar o `docker compose up` e uma chamada com chave real do Gemini.
+`docker compose up` validado durante a fase 2.
+**Pendente:** validar uma chamada com chave real do Gemini.
 
 ## Fora desta fase
 

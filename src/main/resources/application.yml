@@ -4,6 +4,18 @@ spring:
   threads:
     virtual:
       enabled: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ia_service}
+    username: ${DB_USERNAME:ia_service}
+    password: ${DB_PASSWORD:ia_service}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  mvc:
+    async:
+      # Tempo máximo de uma resposta em streaming
+      request-timeout: 120s
   ai:
     google:
       genai:
