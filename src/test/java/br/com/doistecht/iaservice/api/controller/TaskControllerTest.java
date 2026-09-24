@@ -8,8 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.doistecht.iaservice.config.IaServiceProperties;
-import br.com.doistecht.iaservice.exception.GlobalExceptionHandler;
 import br.com.doistecht.iaservice.security.ApiKeyFilter;
 import br.com.doistecht.iaservice.task.TaskResult;
 import br.com.doistecht.iaservice.task.TaskService;
@@ -18,21 +16,13 @@ import br.com.doistecht.iaservice.template.TemplateNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(TaskController.class)
-@Import({ ApiKeyFilter.class, GlobalExceptionHandler.class })
-@EnableConfigurationProperties(IaServiceProperties.class)
-@TestPropertySource(properties = "ia-service.api-key=test-api-key")
-class TaskControllerTest {
-
-	private static final String VALID_KEY = "test-api-key";
+class TaskControllerTest extends ApiControllerTestSupport {
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -42,11 +32,11 @@ class TaskControllerTest {
 
 	@Test
 	void shouldExecuteTextTask() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), isNull(), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap()))
 				.willReturn(new TaskResult("resumir-texto", 1, "Resumo", null, "gemini-2.5-flash", "gemini"));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"variables": {"texto": "abc", "linhas": "2"}}
@@ -59,11 +49,11 @@ class TaskControllerTest {
 
 	@Test
 	void shouldPassRequestedVersion() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), eq(3), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), eq(3), eq(7L), anyMap()))
 				.willReturn(new TaskResult("resumir-texto", 3, "Resumo", null, "m", "gemini"));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto?version=3")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isOk())
@@ -72,11 +62,11 @@ class TaskControllerTest {
 
 	@Test
 	void shouldReturnNotFoundForUnknownTemplate() throws Exception {
-		given(taskService.execute(eq("nao-existe"), isNull(), anyMap()))
+		given(taskService.execute(eq("nao-existe"), isNull(), eq(7L), anyMap()))
 				.willThrow(new TemplateNotFoundException("nao-existe", null));
 
 		mockMvc.perform(post("/v1/tasks/nao-existe")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isNotFound());
@@ -84,11 +74,11 @@ class TaskControllerTest {
 
 	@Test
 	void shouldReturnBadRequestWithMissingVariables() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), isNull(), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap()))
 				.willThrow(new MissingVariablesException(List.of("texto")));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{}"))
 				.andExpect(status().isBadRequest())

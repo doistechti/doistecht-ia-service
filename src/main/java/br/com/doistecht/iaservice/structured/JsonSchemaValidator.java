@@ -36,8 +36,13 @@ public class JsonSchemaValidator {
 	public List<String> validate(Schema schema, JsonNode document) {
 		return schema.validate(document).stream()
 				.limit(MAX_ERRORS)
-				.map(error -> error.getInstanceLocation() + ": " + error.getMessage())
+				.map(error -> location(error.getInstanceLocation().toString()) + ": " + error.getMessage())
 				.toList();
+	}
+
+	// A raiz do documento vem como caminho vazio; "$" deixa a mensagem mais clara
+	private static String location(String path) {
+		return path.isEmpty() ? "$" : path;
 	}
 
 	// O schema vem do cliente: referências externas fariam o serviço baixar URLs arbitrárias (SSRF)

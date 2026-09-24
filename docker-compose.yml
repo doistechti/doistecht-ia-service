@@ -11,8 +11,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-ia_service}
       DB_USERNAME: ${DB_USERNAME:-ia_service}
       DB_PASSWORD: ${DB_PASSWORD:-ia_service}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080'"]
@@ -41,5 +45,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  redis:
+    image: redis:8-alpine
+    container_name: ia-service-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  redis-data:

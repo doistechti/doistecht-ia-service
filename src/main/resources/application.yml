@@ -12,6 +12,12 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Tempo curto: com o Redis fora do ar, o serviço segue sem cache e sem rate limit
+      timeout: 2s
   mvc:
     async:
       # Tempo máximo de uma resposta em streaming
@@ -24,7 +30,23 @@ spring:
           model: ${GEMINI_MODEL:gemini-2.5-flash}
 
 ia-service:
-  api-key: ${IA_SERVICE_API_KEY}
+  admin-key: ${IA_SERVICE_ADMIN_KEY}
+  auth:
+    key-cache-ttl: 30s
+  cache:
+    enabled: ${RESPONSE_CACHE_ENABLED:true}
+    ttl: ${RESPONSE_CACHE_TTL:1h}
+  # Preços em dólares por milhão de tokens (plano pago), usados só para estimar custo
+  pricing:
+    "[gemini-2.5-flash]":
+      input-per-million: 0.30
+      output-per-million: 2.50
+    "[gemini-2.5-flash-lite]":
+      input-per-million: 0.10
+      output-per-million: 0.40
+    "[gemini-2.5-pro]":
+      input-per-million: 1.25
+      output-per-million: 10.00
 
 management:
   endpoints:

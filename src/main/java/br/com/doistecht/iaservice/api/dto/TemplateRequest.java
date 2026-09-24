@@ -2,12 +2,17 @@ package br.com.doistecht.iaservice.api.dto;
 
 import br.com.doistecht.iaservice.template.NewPromptTemplate;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import tools.jackson.databind.JsonNode;
 
 public record TemplateRequest(
+
+		@Schema(description = "Cliente dono do template; omita para criar um template global", example = "1")
+		@Positive
+		Long clientId,
 
 		@Schema(description = "Nome do template em minúsculas, separado por hífens. "
 				+ "Se o nome já existir, é criada uma nova versão.", example = "traduzir-texto")
@@ -31,7 +36,7 @@ public record TemplateRequest(
 		JsonNode outputSchema) {
 
 	public NewPromptTemplate toCommand() {
-		return new NewPromptTemplate(name, systemPrompt, userPromptTemplate, outputSchema);
+		return new NewPromptTemplate(clientId, name, systemPrompt, userPromptTemplate, outputSchema);
 	}
 
 }

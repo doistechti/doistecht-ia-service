@@ -1,5 +1,7 @@
 package br.com.doistecht.iaservice.security;
 
+import br.com.doistecht.iaservice.client.AuthenticatedClient;
+import br.com.doistecht.iaservice.client.ClientAuthenticator;
 import br.com.doistecht.iaservice.config.IaServiceProperties;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -9,6 +11,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -18,49 +21,73 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Exige o header {@code X-API-Key} em todas as rotas da API.
- * <p>
- * Na fase 1 existe uma única chave, configurada por variável de ambiente.
- * Na fase 3 esta validação passa a consultar os clientes cadastrados no banco.
+ * <ul>
+ * <li>{@code /v1/admin/**}: chave de administrador ({@code ia-service.admin-key});</li>
+ * <li>demais rotas {@code /v1/**}: chave de um cliente cadastrado e ativo.</li>
+ * </ul>
+ * O cliente autenticado fica no atributo {@link AuthenticatedClient#REQUEST_ATTRIBUTE}.
  */
 @Component
 public class ApiKeyFilter extends OncePerRequestFilter {
 
 	public static final String HEADER = "X-API-Key";
 
-	private final byte[] expectedKey;
+	private static final String ADMIN_PATH = "/v1/admin/";
+
+	private final byte[] adminKey;
+
+	private final ClientAuthenticator authenticator;
 
 	private final ObjectMapper objectMapper;
 
-	public ApiKeyFilter(IaServiceProperties properties, ObjectMapper objectMapper) {
-		this.expectedKey = properties.apiKey().getBytes(StandardCharsets.UTF_8);
+	public ApiKeyFilter(IaServiceProperties properties, ClientAuthenticator authenticator,
+			ObjectMapper objectMapper) {
+		this.adminKey = properties.adminKey().getBytes(StandardCharsets.UTF_8);
+		this.authenticator = authenticator;
 		this.objectMapper = objectMapper;
 	}
 
 	@Override
 	protected boolean shouldNotFilter(HttpServletRequest request) {
-		String path = request.getRequestURI().substring(request.getContextPath().length());
-		return !path.startsWith("/v1/");
+		return !path(request).startsWith("/v1/");
 	}
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 		String providedKey = request.getHeader(HEADER);
-		if (providedKey == null || !isValid(providedKey)) {
-			writeUnauthorized(request, response);
+
+		if (path(request).startsWith(ADMIN_PATH)) {
+			if (!isAdminKey(providedKey)) {
+				writeUnauthorized(request, response, "Chave de administrador ausente ou inválida.");
+				return;
+			}
+			chain.doFilter(request, response);
 			return;
 		}
+
+		Optional<AuthenticatedClient> client = authenticator.authenticate(providedKey);
+		if (client.isEmpty()) {
+			writeUnauthorized(request, response, "API key ausente, inválida ou desativada.");
+			return;
+		}
+		request.setAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE, client.get());
 		chain.doFilter(request, response);
 	}
 
 	// Comparação em tempo constante para não vazar informação por tempo de resposta
-	private boolean isValid(String providedKey) {
-		return MessageDigest.isEqual(expectedKey, providedKey.getBytes(StandardCharsets.UTF_8));
+	private boolean isAdminKey(String providedKey) {
+		return providedKey != null && MessageDigest.isEqual(adminKey, providedKey.getBytes(StandardCharsets.UTF_8));
 	}
 
-	private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response) throws IOException {
+	private static String path(HttpServletRequest request) {
+		return request.getRequestURI().substring(request.getContextPath().length());
+	}
+
+	private void writeUnauthorized(HttpServletRequest request, HttpServletResponse response, String detail)
+			throws IOException {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
-				"API key ausente ou inválida. Envie o header " + HEADER + ".");
+				detail + " Envie o header " + HEADER + ".");
 		problem.setInstance(URI.create(request.getRequestURI()));
 
 		response.setStatus(HttpStatus.UNAUTHORIZED.value());

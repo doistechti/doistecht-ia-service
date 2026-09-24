@@ -5,6 +5,8 @@ import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatMessage;
 import br.com.doistecht.iaservice.provider.ChatResult;
+import br.com.doistecht.iaservice.provider.StreamChunk;
+import br.com.doistecht.iaservice.provider.TokenUsage;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions;
@@ -46,9 +49,10 @@ public class GeminiProvider implements AiProvider {
 	}
 
 	@Override
-	public Flux<String> chatStream(ChatCommand command) {
+	public Flux<StreamChunk> chatStream(ChatCommand command) {
 		return prompt(command).stream()
-				.content()
+				.chatResponse()
+				.map(GeminiProvider::toChunk)
 				.onErrorMap(ex -> !(ex instanceof AiProviderException), ex -> {
 					log.error("Falha no streaming do Gemini", ex);
 					return new AiProviderException(NAME, "Falha no streaming do provedor " + NAME, ex);
@@ -89,7 +93,21 @@ public class GeminiProvider implements AiProvider {
 		return new ChatResult(
 				response.getResult().getOutput().getText(),
 				response.getMetadata().getModel(),
-				NAME);
+				NAME,
+				toUsage(response.getMetadata().getUsage()));
+	}
+
+	private static StreamChunk toChunk(ChatResponse response) {
+		String text = response.getResult() == null ? "" : response.getResult().getOutput().getText();
+		return new StreamChunk(text == null ? "" : text, response.getMetadata().getModel(),
+				toUsage(response.getMetadata().getUsage()));
+	}
+
+	private static TokenUsage toUsage(Usage usage) {
+		if (usage == null || (usage.getPromptTokens() == null && usage.getCompletionTokens() == null)) {
+			return null;
+		}
+		return new TokenUsage(usage.getPromptTokens(), usage.getCompletionTokens());
 	}
 
 	private static List<Message> toMessages(List<ChatMessage> history) {

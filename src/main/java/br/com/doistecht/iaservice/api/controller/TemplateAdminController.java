@@ -7,11 +7,13 @@ import br.com.doistecht.iaservice.template.PromptTemplate;
 import br.com.doistecht.iaservice.template.PromptTemplateService;
 import br.com.doistecht.iaservice.template.TemplateRenderer;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tools.jackson.databind.ObjectMapper;
@@ -52,8 +55,10 @@ public class TemplateAdminController {
 
 	@Operation(summary = "Lista as versões de um template, da mais recente para a mais antiga")
 	@GetMapping("/{name}")
-	public List<TemplateResponse> versions(@PathVariable String name) {
-		return templateService.listVersions(name).stream().map(this::toResponse).toList();
+	public List<TemplateResponse> versions(@PathVariable String name,
+			@Parameter(description = "Cliente dono do template; omita para o template global")
+			@RequestParam(required = false) Long clientId) {
+		return templateService.listVersions(name, clientId).stream().map(this::toResponse).toList();
 	}
 
 	@Operation(summary = "Cria um template ou uma nova versão de um template existente")
@@ -62,6 +67,7 @@ public class TemplateAdminController {
 		PromptTemplate created = templateService.create(request.toCommand());
 		var location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{name}")
+				.queryParamIfPresent("clientId", Optional.ofNullable(created.getClientId()))
 				.buildAndExpand(created.getName())
 				.toUri();
 		return ResponseEntity.created(location).body(toResponse(created));
@@ -70,8 +76,10 @@ public class TemplateAdminController {
 	@Operation(summary = "Ativa ou desativa uma versão do template")
 	@PatchMapping("/{name}/versions/{version}")
 	public TemplateResponse setStatus(@PathVariable String name, @PathVariable int version,
+			@Parameter(description = "Cliente dono do template; omita para o template global")
+			@RequestParam(required = false) Long clientId,
 			@Valid @RequestBody TemplateStatusRequest request) {
-		return toResponse(templateService.setActive(name, version, request.active()));
+		return toResponse(templateService.setActive(name, version, clientId, request.active()));
 	}
 
 	private TemplateResponse toResponse(PromptTemplate template) {

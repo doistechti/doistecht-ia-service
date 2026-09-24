@@ -7,6 +7,7 @@ import tools.jackson.databind.JsonNode;
 
 public record TemplateResponse(
 		Long id,
+		Long clientId,
 		String name,
 		int version,
 		String systemPrompt,
@@ -17,7 +18,7 @@ public record TemplateResponse(
 		Instant createdAt) {
 
 	public static TemplateResponse from(PromptTemplate template, List<String> variables, JsonNode outputSchema) {
-		return new TemplateResponse(template.getId(), template.getName(), template.getVersion(),
+		return new TemplateResponse(template.getId(), template.getClientId(), template.getName(), template.getVersion(),
 				template.getSystemPrompt(), template.getUserPromptTemplate(), variables, outputSchema,
 				template.isActive(), template.getCreatedAt());
 	}

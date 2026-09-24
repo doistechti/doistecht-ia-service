@@ -1,10 +1,14 @@
 package br.com.doistecht.iaservice.exception;
 
+import br.com.doistecht.iaservice.client.ClientAlreadyExistsException;
+import br.com.doistecht.iaservice.client.ClientNotFoundException;
 import br.com.doistecht.iaservice.provider.AiProviderException;
+import br.com.doistecht.iaservice.ratelimit.RateLimitExceededException;
 import br.com.doistecht.iaservice.structured.InvalidSchemaException;
 import br.com.doistecht.iaservice.structured.InvalidStructuredOutputException;
 import br.com.doistecht.iaservice.template.MissingVariablesException;
 import br.com.doistecht.iaservice.template.TemplateNotFoundException;
+import br.com.doistecht.iaservice.usage.InvalidPeriodException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -37,9 +41,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem;
 	}
 
-	@ExceptionHandler(TemplateNotFoundException.class)
-	ProblemDetail handleTemplateNotFound(TemplateNotFoundException ex) {
+	@ExceptionHandler(RateLimitExceededException.class)
+	ResponseEntity<ProblemDetail> handleRateLimit(RateLimitExceededException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+		problem.setProperty("limit", ex.getLimit());
+		problem.setProperty("retryAfterSeconds", ex.getRetryAfterSeconds());
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+				.body(problem);
+	}
+
+	@ExceptionHandler({ TemplateNotFoundException.class, ClientNotFoundException.class })
+	ProblemDetail handleNotFound(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+	}
+
+	@ExceptionHandler(ClientAlreadyExistsException.class)
+	ProblemDetail handleClientAlreadyExists(ClientAlreadyExistsException ex) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
 	}
 
 	@ExceptionHandler(MissingVariablesException.class)
@@ -50,8 +69,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem;
 	}
 
-	@ExceptionHandler(InvalidSchemaException.class)
-	ProblemDetail handleInvalidSchema(InvalidSchemaException ex) {
+	@ExceptionHandler({ InvalidSchemaException.class, InvalidPeriodException.class })
+	ProblemDetail handleBadRequest(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}
 
@@ -63,7 +82,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem;
 	}
 
-	// Dois pedidos simultâneos tentando criar a mesma versão de template
+	// Ex.: dois pedidos simultâneos tentando criar a mesma versão de template
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,

@@ -37,8 +37,11 @@ public class TaskService {
 		this.objectMapper = objectMapper;
 	}
 
-	public TaskResult execute(String name, Integer version, Map<String, String> variables) {
-		PromptTemplate template = templateService.resolve(name, version);
+	/**
+	 * @param clientId cliente que executa a tarefa; templates próprios dele têm prioridade sobre os globais
+	 */
+	public TaskResult execute(String name, Integer version, Long clientId, Map<String, String> variables) {
+		PromptTemplate template = templateService.resolve(name, version, clientId);
 
 		// Valida os dois textos juntos para devolver todas as variáveis ausentes de uma vez
 		renderer.requireVariables(variables, template.getSystemPrompt(), template.getUserPromptTemplate());

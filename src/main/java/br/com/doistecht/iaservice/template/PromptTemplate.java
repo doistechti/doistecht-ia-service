@@ -22,6 +22,9 @@ public class PromptTemplate {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	/** Cliente dono do template; {@code null} para templates globais. */
+	private Long clientId;
+
 	@Column(nullable = false, length = 100)
 	private String name;
 
@@ -50,6 +53,12 @@ public class PromptTemplate {
 
 	public PromptTemplate(String name, int version, String systemPrompt, String userPromptTemplate,
 			String outputSchema) {
+		this(null, name, version, systemPrompt, userPromptTemplate, outputSchema);
+	}
+
+	public PromptTemplate(Long clientId, String name, int version, String systemPrompt, String userPromptTemplate,
+			String outputSchema) {
+		this.clientId = clientId;
 		this.name = name;
 		this.version = version;
 		this.systemPrompt = systemPrompt;
@@ -60,6 +69,10 @@ public class PromptTemplate {
 
 	public Long getId() {
 		return id;
+	}
+
+	public Long getClientId() {
+		return clientId;
 	}
 
 	public String getName() {

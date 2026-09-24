@@ -19,7 +19,12 @@ public class OpenApiConfig {
 		return new OpenAPI()
 				.info(new Info()
 						.title("doistecht-ia-service")
-						.description("AI Gateway que disponibiliza modelos de IA para diversos projetos")
+						.description("""
+								AI Gateway que disponibiliza modelos de IA para diversos projetos.
+
+								Autenticação pelo header `X-API-Key`:
+								- rotas `/v1/admin/**`: chave de administrador (`IA_SERVICE_ADMIN_KEY`);
+								- demais rotas: API key do cliente, gerada em `POST /v1/admin/clients`.""")
 						.version("v1"))
 				.components(new Components().addSecuritySchemes(API_KEY_SCHEME, new SecurityScheme()
 						.type(SecurityScheme.Type.APIKEY)

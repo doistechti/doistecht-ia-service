@@ -42,7 +42,9 @@ public class ChatController {
 	@PostMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
 	public Flux<ServerSentEvent<Object>> stream(@Valid @RequestBody ChatRequest request) {
 		return aiProvider.chatStream(request.toCommand())
-				.map(chunk -> ServerSentEvent.<Object>builder(new ChatChunk(chunk)).event("message").build())
+				// O último pedaço costuma trazer só metadados (tokens), sem texto
+				.filter(chunk -> chunk.content() != null && !chunk.content().isEmpty())
+				.map(chunk -> ServerSentEvent.<Object>builder(new ChatChunk(chunk.content())).event("message").build())
 				.concatWith(Mono.just(ServerSentEvent.<Object>builder(Map.of()).event("done").build()))
 				// O status HTTP já foi enviado quando o stream começa, então a falha vira um evento
 				.onErrorResume(AiProviderException.class, ex -> Mono.just(ServerSentEvent.<Object>builder(

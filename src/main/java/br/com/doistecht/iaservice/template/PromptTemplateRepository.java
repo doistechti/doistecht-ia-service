@@ -4,16 +4,22 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * Nas consultas com {@code clientId}, o valor {@code null} seleciona os templates globais
+ * (o Spring Data traduz para {@code client_id IS NULL}).
+ */
 public interface PromptTemplateRepository extends JpaRepository<PromptTemplate, Long> {
 
-	Optional<PromptTemplate> findFirstByNameAndActiveTrueOrderByVersionDesc(String name);
+	Optional<PromptTemplate> findFirstByClientIdAndNameAndActiveTrueOrderByVersionDesc(Long clientId, String name);
 
-	Optional<PromptTemplate> findByNameAndVersion(String name, int version);
+	Optional<PromptTemplate> findByClientIdAndNameAndVersion(Long clientId, String name, int version);
 
-	Optional<PromptTemplate> findFirstByNameOrderByVersionDesc(String name);
+	Optional<PromptTemplate> findFirstByClientIdAndNameOrderByVersionDesc(Long clientId, String name);
 
-	List<PromptTemplate> findByNameOrderByVersionDesc(String name);
+	List<PromptTemplate> findByClientIdAndNameOrderByVersionDesc(Long clientId, String name);
 
-	List<PromptTemplate> findAllByOrderByNameAscVersionDesc();
+	boolean existsByClientIdAndName(Long clientId, String name);
+
+	List<PromptTemplate> findAllByOrderByNameAscClientIdAscVersionDesc();
 
 }

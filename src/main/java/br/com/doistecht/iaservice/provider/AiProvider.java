@@ -16,7 +16,7 @@ public interface AiProvider {
 	ChatResult chat(ChatCommand command);
 
 	/** Resposta entregue em partes, à medida que o modelo gera o texto. */
-	Flux<String> chatStream(ChatCommand command);
+	Flux<StreamChunk> chatStream(ChatCommand command);
 
 	/**
 	 * Pede ao modelo uma resposta em JSON que siga o schema informado.

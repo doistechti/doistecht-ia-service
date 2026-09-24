@@ -3,43 +3,37 @@ package br.com.doistecht.iaservice.api.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.doistecht.iaservice.config.IaServiceProperties;
-import br.com.doistecht.iaservice.exception.GlobalExceptionHandler;
 import br.com.doistecht.iaservice.provider.AiProvider;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatMessage;
 import br.com.doistecht.iaservice.provider.ChatResult;
+import br.com.doistecht.iaservice.provider.StreamChunk;
+import br.com.doistecht.iaservice.ratelimit.RateLimitExceededException;
 import br.com.doistecht.iaservice.security.ApiKeyFilter;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import reactor.core.publisher.Flux;
 
 @WebMvcTest(ChatController.class)
-@Import({ ApiKeyFilter.class, GlobalExceptionHandler.class })
-@EnableConfigurationProperties(IaServiceProperties.class)
-@TestPropertySource(properties = "ia-service.api-key=test-api-key")
-class ChatControllerTest {
-
-	private static final String VALID_KEY = "test-api-key";
+class ChatControllerTest extends ApiControllerTestSupport {
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -53,7 +47,7 @@ class ChatControllerTest {
 				.willReturn(new ChatResult("Olá!", "gemini-2.5-flash", "gemini"));
 
 		mockMvc.perform(post("/v1/chat")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "Oi", "systemPrompt": "Seja breve."}
@@ -70,7 +64,7 @@ class ChatControllerTest {
 				.willReturn(new ChatResult("Brasília tem cerca de 3 milhões.", "gemini-2.5-flash", "gemini"));
 
 		mockMvc.perform(post("/v1/chat")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{
@@ -93,7 +87,7 @@ class ChatControllerTest {
 	@Test
 	void shouldRejectInvalidHistoryRole() throws Exception {
 		mockMvc.perform(post("/v1/chat")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "Oi", "history": [{"role": "system", "content": "x"}]}
@@ -105,10 +99,10 @@ class ChatControllerTest {
 	@Test
 	void shouldStreamChunksAsServerSentEvents() throws Exception {
 		given(aiProvider.chatStream(any(ChatCommand.class)))
-				.willReturn(Flux.just("Olá", ", mundo\n!"));
+				.willReturn(Flux.just(new StreamChunk("Olá"), new StreamChunk(""), new StreamChunk(", mundo\n!")));
 
 		MvcResult result = mockMvc.perform(post("/v1/chat/stream")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "Oi"}
@@ -124,17 +118,18 @@ class ChatControllerTest {
 		assertThat(body)
 				.contains("event:message\ndata:{\"content\":\"Olá\"}")
 				.contains("data:{\"content\":\", mundo\\n!\"}")
-				.contains("event:done");
+				.contains("event:done")
+				.doesNotContain("data:{\"content\":\"\"}");
 	}
 
 	@Test
 	void shouldEmitErrorEventWhenStreamFails() throws Exception {
 		given(aiProvider.chatStream(any(ChatCommand.class)))
-				.willReturn(Flux.concat(Flux.just("Parte"),
+				.willReturn(Flux.concat(Flux.just(new StreamChunk("Parte")),
 						Flux.error(new AiProviderException("gemini", "falhou", null))));
 
 		MvcResult result = mockMvc.perform(post("/v1/chat/stream")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "Oi"}
@@ -146,6 +141,49 @@ class ChatControllerTest {
 				.andReturn().getResponse().getContentAsString();
 
 		assertThat(body).contains("data:{\"content\":\"Parte\"}").contains("event:error").doesNotContain("event:done");
+	}
+
+	@Test
+	void shouldReturnTooManyRequestsWhenRateLimitIsExceeded() throws Exception {
+		given(rateLimitService.consume(CLIENT)).willThrow(
+				new RateLimitExceededException(RateLimitExceededException.Limit.PER_MINUTE, 12));
+
+		mockMvc.perform(post("/v1/chat")
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"message": "Oi"}
+								"""))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().string("Retry-After", "12"))
+				.andExpect(jsonPath("$.limit").value("PER_MINUTE"));
+		verify(aiProvider, never()).chat(any(ChatCommand.class));
+	}
+
+	@Test
+	void shouldExposeRemainingLimitsInHeaders() throws Exception {
+		given(aiProvider.chat(any(ChatCommand.class))).willReturn(new ChatResult("Olá!", "m", "gemini"));
+
+		mockMvc.perform(post("/v1/chat")
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"message": "Oi"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(header().string("X-RateLimit-Remaining", "9"))
+				.andExpect(header().string("X-Quota-Remaining", "199"));
+	}
+
+	@Test
+	void shouldNotAcceptAdminKeyOnClientRoutes() throws Exception {
+		mockMvc.perform(post("/v1/chat")
+						.header(ApiKeyFilter.HEADER, ADMIN_KEY)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"message": "Oi"}
+								"""))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -173,7 +211,7 @@ class ChatControllerTest {
 	@Test
 	void shouldRejectBlankMessage() throws Exception {
 		mockMvc.perform(post("/v1/chat")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "  "}
@@ -189,7 +227,7 @@ class ChatControllerTest {
 				.willThrow(new AiProviderException("gemini", "falhou", null));
 
 		mockMvc.perform(post("/v1/chat")
-						.header(ApiKeyFilter.HEADER, VALID_KEY)
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("""
 								{"message": "Oi"}
