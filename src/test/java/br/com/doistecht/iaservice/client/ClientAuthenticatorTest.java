@@ -8,9 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import br.com.doistecht.iaservice.config.IaServiceProperties;
-import java.time.Duration;
-import java.util.Map;
+import br.com.doistecht.iaservice.config.TestProperties;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -18,9 +16,7 @@ class ClientAuthenticatorTest {
 
 	private final ClientRepository repository = mock(ClientRepository.class);
 
-	private final ClientAuthenticator authenticator = new ClientAuthenticator(repository,
-			new IaServiceProperties("admin", new IaServiceProperties.Auth(Duration.ofMinutes(1)),
-					new IaServiceProperties.Cache(true, Duration.ofHours(1)), Map.of()));
+	private final ClientAuthenticator authenticator = new ClientAuthenticator(repository, TestProperties.defaults());
 
 	@Test
 	void shouldAuthenticateActiveClientAndCacheResult() {

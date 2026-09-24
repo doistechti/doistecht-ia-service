@@ -6,7 +6,7 @@ AI Gateway em Java que disponibiliza modelos de IA para diversos projetos por me
 
 Os projetos clientes não chamam o provedor de IA diretamente: eles consomem este serviço, que centraliza autenticação, controle de uso, prompts e observabilidade.
 
-> **Status:** Fase 4 (Robustez) concluída — veja o [roadmap](docs/01-escopo-do-projeto.md#5-roadmap).
+> **Status:** Fase 5 (Diferencial) concluída — veja o [roadmap](docs/01-escopo-do-projeto.md#5-roadmap).
 
 ## Funcionalidades
 
@@ -20,15 +20,20 @@ Os projetos clientes não chamam o provedor de IA diretamente: eles consomem est
 - **Cache de respostas** por cliente no Redis
 - **Registro de uso**: tokens, latência e custo estimado por chamada: `/v1/usage` e `/v1/admin/usage`
 - **Resiliência**: retry, circuit breaker e modelo reserva quando o Gemini falha
+- **Embeddings** para busca semântica: `POST /v1/embeddings`
+- **RAG**: perguntas respondidas com base nos documentos (PDF, TXT, MD) de cada cliente, com as fontes: `/v1/documents` e `POST /v1/rag/ask`
+- **Observabilidade**: métricas no Prometheus e dashboard pronto no Grafana
 
 ## Stack
 
 - Java 21 (virtual threads)
 - Spring Boot 4.1 + Spring AI 2.0
 - Gemini (Google AI Studio)
-- PostgreSQL 17 + Flyway + Spring Data JPA
+- PostgreSQL 17 + pgvector + Flyway + Spring Data JPA
 - Redis 8 + Bucket4j + Caffeine
 - Resilience4j
+- Apache PDFBox
+- Micrometer + Prometheus + Grafana
 - Maven
 - springdoc-openapi (Swagger UI)
 - JUnit 5, Mockito, Testcontainers, WireMock, JaCoCo
@@ -55,11 +60,15 @@ cp .env.example .env
 | `GEMINI_MODEL` | Não | Modelo Gemini (padrão `gemini-2.5-flash`) |
 | `GEMINI_FALLBACK_MODEL` | Não | Modelo reserva (padrão `gemini-2.5-flash-lite`; vazio desativa) |
 | `GEMINI_TIMEOUT` | Não | Tempo máximo de cada chamada ao Gemini (padrão `30s`) |
+| `GEMINI_EMBEDDING_MODEL` | Não | Modelo de embeddings (padrão `gemini-embedding-001`) |
+| `RAG_MIN_SCORE` | Não | Similaridade mínima (0 a 1) para um trecho entrar como contexto (padrão `0.5`) |
 | `IA_SERVICE_ADMIN_KEY` | Sim | Chave de administrador, exigida nas rotas `/v1/admin/**` |
 | `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` | Não | Credenciais do PostgreSQL (padrão `ia_service`) |
 | `DB_URL` | Não | URL JDBC (padrão `jdbc:postgresql://localhost:5433/ia_service`) |
 | `REDIS_HOST` / `REDIS_PORT` | Não | Redis (padrão `localhost:6379`) |
 | `RESPONSE_CACHE_ENABLED` / `RESPONSE_CACHE_TTL` | Não | Liga o cache de respostas e define a validade (padrão `true` / `1h`) |
+| `MANAGEMENT_PORT` | Não | Porta do Actuator: health e métricas (padrão `8081`) |
+| `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | Não | Login do Grafana (padrão `admin` / `admin`; troque a senha) |
 
 > A partir da fase 3, `IA_SERVICE_API_KEY` foi substituída por `IA_SERVICE_ADMIN_KEY`: os clientes passaram a ter chaves próprias.
 
@@ -69,12 +78,19 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Sobe o serviço, o PostgreSQL e o Redis. As migrations do Flyway criam as tabelas e os templates iniciais automaticamente.
+Sobe o serviço, o PostgreSQL (com pgvector), o Redis, o Prometheus e o Grafana. As migrations do Flyway criam as tabelas e os templates iniciais automaticamente.
+
+| Serviço | Endereço |
+|---|---|
+| API | `http://localhost:8080` |
+| Health e métricas (Actuator) | `http://localhost:8081/actuator/health` (só em localhost) |
+| Prometheus | `http://localhost:9090` |
+| Grafana (dashboard pronto) | `http://localhost:3000` |
 
 ### Sem Docker para a aplicação
 
 ```bash
-docker compose up -d postgres redis    # PostgreSQL na porta 5433, Redis na 6379
+docker compose up -d postgres redis    # PostgreSQL (pgvector) na porta 5433, Redis na 6379
 set -a && source .env && set +a        # Linux/macOS (Git Bash no Windows)
 ./mvnw spring-boot:run
 ```
@@ -239,15 +255,71 @@ curl http://localhost:8080/v1/usage?from=2026-09-01&to=2026-09-30 -H "X-API-Key:
 
 Sem datas, retorna os últimos 30 dias. `GET /v1/admin/usage` traz os mesmos totais agrupados por cliente. O custo é **estimado** com os preços do plano pago configurados em `ia-service.pricing`; no plano gratuito o custo real é zero.
 
+### Documentos e RAG
+
+Envie documentos (PDF, TXT ou MD, até 10 MB) e faça perguntas sobre eles. Cada cliente só enxerga os próprios documentos.
+
+```bash
+# 1. Enviar: o processamento é assíncrono e o documento volta com status PROCESSING
+curl -X POST http://localhost:8080/v1/documents   -H "X-API-Key: <API_KEY_DO_CLIENTE>"   -F "file=@politica-de-reembolso.pdf"
+
+# 2. Acompanhar até o status ficar READY
+curl http://localhost:8080/v1/documents/1 -H "X-API-Key: <API_KEY_DO_CLIENTE>"
+
+# 3. Perguntar
+curl -X POST http://localhost:8080/v1/rag/ask   -H "Content-Type: application/json"   -H "X-API-Key: <API_KEY_DO_CLIENTE>"   -d '{"question": "Qual o prazo de reembolso?"}'
+```
+
+```json
+{
+  "answer": "O valor é devolvido em até 7 dias úteis [1].",
+  "found": true,
+  "sources": [
+    { "documentId": 1, "fileName": "politica-de-reembolso.pdf", "chunkIndex": 3, "score": 0.81, "excerpt": "O valor é devolvido em até 7 dias úteis..." }
+  ],
+  "model": "gemini-2.5-flash",
+  "provider": "gemini",
+  "fallback": false
+}
+```
+
+Quando nenhum trecho é relevante, a resposta vem com `"found": false` e *"Não encontrei essa informação nos documentos."*, sem chamar o modelo de chat. Use `documentIds` para restringir a busca e `topK` para a quantidade de trechos (padrão 4).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/v1/documents` | Envia um documento (multipart, campo `file`) |
+| `GET` | `/v1/documents` | Lista os documentos do cliente |
+| `GET` | `/v1/documents/{id}` | Status do processamento (`PROCESSING`, `READY` ou `FAILED`) |
+| `DELETE` | `/v1/documents/{id}` | Apaga o documento e seus trechos |
+| `POST` | `/v1/rag/ask` | Pergunta sobre os documentos |
+| `POST` | `/v1/embeddings` | Gera embeddings (`purpose`: `document` ou `query`) |
+
+Consultar e apagar documentos não consome o limite de requisições; só as chamadas `POST` que usam o modelo consomem.
+
+### Observabilidade
+
+O dashboard **doistecht-ia-service** abre direto no Grafana (`http://localhost:3000`), com chamadas e tokens por cliente, taxa de erro e de cache, latência (p50/p95/p99), estado dos circuit breakers, requisições recusadas por limite e uso do modelo reserva.
+
+Métricas próprias expostas em `/actuator/prometheus` (porta 8081):
+
+| Métrica | Tags |
+|---|---|
+| `ia_gateway_calls_total` | `client`, `operation`, `provider`, `outcome` (`success`/`failure`/`cache_hit`), `fallback` |
+| `ia_gateway_tokens_total` | `client`, `operation`, `type` (`input`/`output`) |
+| `ia_gateway_latency_seconds` | `operation`, `provider`, `outcome` (histograma) |
+| `ia_ratelimit_rejected_total` | `client`, `limit` |
+
+Além delas, o Resilience4j publica o estado dos circuit breakers e o Spring Boot publica as métricas HTTP e da JVM.
+
 ### Erros
 
 Erros seguem o formato `ProblemDetail` (RFC 9457):
 
 | Status | Quando |
 |---|---|
-| `400` | Corpo inválido, schema inválido ou variáveis do template ausentes |
+| `400` | Corpo inválido, schema inválido, variáveis do template ausentes ou documento em formato não suportado |
 | `401` | Header `X-API-Key` ausente, inválido ou de cliente desativado |
-| `404` | Template ou cliente inexistente |
+| `404` | Template, cliente ou documento inexistente |
 | `409` | Cliente com nome já cadastrado |
 | `422` | O modelo não gerou JSON válido para o schema |
 | `429` | Limite por minuto ou cota diária atingidos |
@@ -260,7 +332,8 @@ Erros seguem o formato `ProblemDetail` (RFC 9457):
 |---|---|
 | `/swagger-ui.html` | Documentação interativa da API |
 | `/v3/api-docs` | Especificação OpenAPI |
-| `/actuator/health` | Health check |
+| `http://localhost:8081/actuator/health` | Health check (porta do Actuator) |
+| `http://localhost:8081/actuator/prometheus` | Métricas no formato do Prometheus |
 
 ## Testes
 
@@ -270,7 +343,7 @@ Erros seguem o formato `ProblemDetail` (RFC 9457):
 ```
 
 - **Unitários** (`*Test`): rodam sem Docker e sem rede.
-- **Integração** (`*IT`): sobem PostgreSQL e Redis reais com Testcontainers; são ignorados quando o Docker não está disponível.
+- **Integração** (`*IT`): sobem PostgreSQL (com pgvector) e Redis reais com Testcontainers; são ignorados quando o Docker não está disponível.
 - **Resiliência de ponta a ponta** (`GeminiResilienceIT`): a API do Gemini é simulada com WireMock, e o SDK do Google faz chamadas HTTP de verdade.
 - **Cobertura**: relatório em `target/site/jacoco/index.html`; o build falha abaixo de 80% de linhas.
 

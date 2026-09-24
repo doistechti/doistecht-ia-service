@@ -1,13 +1,20 @@
 package br.com.doistecht.iaservice.provider.gemini;
 
+import br.com.doistecht.iaservice.config.IaServiceProperties;
 import br.com.doistecht.iaservice.provider.AiProvider;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatMessage;
 import br.com.doistecht.iaservice.provider.ChatResult;
+import br.com.doistecht.iaservice.provider.EmbeddingPurpose;
+import br.com.doistecht.iaservice.provider.EmbeddingResult;
 import br.com.doistecht.iaservice.provider.ModelFallbackExecutor;
 import br.com.doistecht.iaservice.provider.StreamChunk;
 import br.com.doistecht.iaservice.provider.TokenUsage;
+import com.google.genai.Client;
+import com.google.genai.types.ContentEmbedding;
+import com.google.genai.types.EmbedContentConfig;
+import com.google.genai.types.EmbedContentResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.RetryRegistry;
 import java.util.List;
@@ -33,6 +40,10 @@ import reactor.core.publisher.Flux;
  * Chamadas síncronas passam pelo {@link ModelFallbackExecutor} (retry, circuit breaker e
  * modelo reserva). O streaming usa só o modelo principal, sem novas tentativas: depois que
  * o primeiro trecho chega ao cliente, não há como recomeçar a resposta de forma transparente.
+ * <p>
+ * Embeddings usam o SDK do Google diretamente, e não o Spring AI: a versão 2.0.1 do Spring AI
+ * aceita a opção {@code task-type} mas não a envia ao Gemini, e o tipo de tarefa
+ * ({@code RETRIEVAL_DOCUMENT} / {@code RETRIEVAL_QUERY}) melhora a qualidade da busca.
  */
 @Component
 public class GeminiProvider implements AiProvider {
@@ -45,12 +56,24 @@ public class GeminiProvider implements AiProvider {
 
 	private final ModelFallbackExecutor executor;
 
-	public GeminiProvider(GoogleGenAiChatModel chatModel, GeminiProperties properties,
+	private final Client genAiClient;
+
+	/** Sem modelo reserva: embeddings de modelos diferentes não são comparáveis entre si. */
+	private final ModelFallbackExecutor embeddingExecutor;
+
+	private final int embeddingDimensions;
+
+	public GeminiProvider(GoogleGenAiChatModel chatModel, Client genAiClient, GeminiProperties properties,
+			IaServiceProperties serviceProperties,
 			@Value("${spring.ai.google.genai.chat.model}") String primaryModel,
 			CircuitBreakerRegistry circuitBreakers, RetryRegistry retries) {
 		this.chatClient = ChatClient.create(chatModel);
+		this.genAiClient = genAiClient;
 		this.executor = new ModelFallbackExecutor(NAME, primaryModel, properties.fallbackModel(),
 				GeminiErrors::isTransient, circuitBreakers, retries);
+		this.embeddingExecutor = new ModelFallbackExecutor(NAME, properties.embeddingModel(), null,
+				GeminiErrors::isTransient, circuitBreakers, retries);
+		this.embeddingDimensions = serviceProperties.rag().embeddingDimensions();
 	}
 
 	@Override
@@ -81,6 +104,25 @@ public class GeminiProvider implements AiProvider {
 					log.error("Falha no streaming do Gemini", ex);
 					return executor.toProviderException(ex);
 				});
+	}
+
+	@Override
+	public EmbeddingResult embed(List<String> texts, EmbeddingPurpose purpose) {
+		EmbedContentConfig config = EmbedContentConfig.builder()
+				.taskType(purpose == EmbeddingPurpose.QUERY ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT")
+				.outputDimensionality(embeddingDimensions)
+				.build();
+		return embeddingExecutor.execute(model -> {
+			EmbedContentResponse response = genAiClient.models.embedContent(model, texts, config);
+			List<float[]> vectors = response.embeddings().orElse(List.of()).stream()
+					.map(GeminiProvider::toNormalizedVector)
+					.toList();
+			if (vectors.size() != texts.size()) {
+				throw new AiProviderException(NAME, "O Gemini devolveu %d embeddings para %d textos"
+						.formatted(vectors.size(), texts.size()), null);
+			}
+			return new EmbeddingResult(vectors, model, null);
+		}).value();
 	}
 
 	private ChatResult execute(Function<String, ChatResult> call) {
@@ -116,6 +158,22 @@ public class GeminiProvider implements AiProvider {
 		String text = response.getResult() == null ? "" : response.getResult().getOutput().getText();
 		return new StreamChunk(text == null ? "" : text, response.getMetadata().getModel(),
 				toUsage(response.getMetadata().getUsage()));
+	}
+
+	// Abaixo de 3072 dimensões o Gemini não entrega vetores normalizados; normalizar deixa
+	// a similaridade por produto escalar equivalente à de cosseno para quem usa a API
+	private static float[] toNormalizedVector(ContentEmbedding embedding) {
+		List<Float> values = embedding.values().orElse(List.of());
+		double norm = 0;
+		for (Float value : values) {
+			norm += value * value;
+		}
+		norm = Math.sqrt(norm);
+		float[] vector = new float[values.size()];
+		for (int i = 0; i < vector.length; i++) {
+			vector[i] = norm == 0 ? 0 : (float) (values.get(i) / norm);
+		}
+		return vector;
 	}
 
 	private static TokenUsage toUsage(Usage usage) {

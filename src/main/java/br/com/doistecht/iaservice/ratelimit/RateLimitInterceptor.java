@@ -9,6 +9,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
 /**
  * Consome os limites do cliente antes de cada chamada às rotas de IA e informa
  * o saldo restante nos headers da resposta.
+ * <p>
+ * Só requisições {@code POST} consomem limite: são elas que chamam o modelo. Consultar ou
+ * apagar documentos, por exemplo, não gasta cota.
  */
 public class RateLimitInterceptor implements HandlerInterceptor {
 
@@ -29,7 +32,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 		// No streaming, a requisição volta ao servlet (dispatch ASYNC) ao terminar: não conta de novo
-		if (request.getDispatcherType() == DispatcherType.ASYNC) {
+		if (request.getDispatcherType() == DispatcherType.ASYNC || !"POST".equals(request.getMethod())) {
 			return true;
 		}
 		if (!(request.getAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE) instanceof AuthenticatedClient client)) {

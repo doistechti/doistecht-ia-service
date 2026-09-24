@@ -1,6 +1,7 @@
 package br.com.doistecht.iaservice.ratelimit;
 
 import br.com.doistecht.iaservice.client.AuthenticatedClient;
+import br.com.doistecht.iaservice.metrics.GatewayMetrics;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
@@ -39,13 +40,16 @@ public class RateLimitService {
 
 	private final StringRedisTemplate redis;
 
+	private final GatewayMetrics metrics;
+
 	private final Clock clock = Clock.systemUTC();
 
 	private volatile ProxyManager<byte[]> proxyManager;
 
-	public RateLimitService(RedisClient rateLimitRedisClient, StringRedisTemplate redis) {
+	public RateLimitService(RedisClient rateLimitRedisClient, StringRedisTemplate redis, GatewayMetrics metrics) {
 		this.redisClient = rateLimitRedisClient;
 		this.redis = redis;
+		this.metrics = metrics;
 	}
 
 	/**
@@ -72,6 +76,7 @@ public class RateLimitService {
 					client.dailyQuota(), client.dailyQuota() - used);
 		}
 		catch (RateLimitExceededException ex) {
+			metrics.recordRateLimitRejected(client.name(), ex.getLimit().name());
 			throw ex;
 		}
 		catch (RuntimeException ex) {

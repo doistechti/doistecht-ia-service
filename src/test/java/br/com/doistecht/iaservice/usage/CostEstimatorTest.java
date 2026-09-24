@@ -2,19 +2,16 @@ package br.com.doistecht.iaservice.usage;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import br.com.doistecht.iaservice.config.IaServiceProperties;
+import br.com.doistecht.iaservice.config.TestProperties;
 import br.com.doistecht.iaservice.config.IaServiceProperties.ModelPrice;
 import br.com.doistecht.iaservice.provider.TokenUsage;
 import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class CostEstimatorTest {
 
-	private final CostEstimator estimator = new CostEstimator(new IaServiceProperties("admin",
-			new IaServiceProperties.Auth(Duration.ofSeconds(30)), new IaServiceProperties.Cache(true, Duration.ofHours(1)),
-			Map.of(
+	private final CostEstimator estimator = new CostEstimator(TestProperties.withPricing(Map.of(
 					"gemini-2.5-flash", new ModelPrice(new BigDecimal("0.30"), new BigDecimal("2.50")),
 					"gemini-2.5-flash-lite", new ModelPrice(new BigDecimal("0.10"), new BigDecimal("0.40")))));
 

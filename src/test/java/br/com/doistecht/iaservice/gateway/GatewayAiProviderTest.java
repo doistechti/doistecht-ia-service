@@ -11,15 +11,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import br.com.doistecht.iaservice.client.AuthenticatedClient;
+import br.com.doistecht.iaservice.metrics.GatewayMetrics;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatResult;
+import br.com.doistecht.iaservice.provider.EmbeddingPurpose;
+import br.com.doistecht.iaservice.provider.EmbeddingResult;
 import br.com.doistecht.iaservice.provider.StreamChunk;
 import br.com.doistecht.iaservice.provider.TokenUsage;
 import br.com.doistecht.iaservice.provider.gemini.GeminiProvider;
 import br.com.doistecht.iaservice.structured.JsonSchemaValidator;
 import br.com.doistecht.iaservice.usage.UsageEvent;
 import br.com.doistecht.iaservice.usage.UsageRecorder;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,8 +46,10 @@ class GatewayAiProviderTest {
 
 	private final UsageRecorder usageRecorder = mock(UsageRecorder.class);
 
+	private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+
 	private final GatewayAiProvider gateway = new GatewayAiProvider(delegate, cache, usageRecorder,
-			new JsonSchemaValidator(), JsonMapper.builder().build());
+			new JsonSchemaValidator(), JsonMapper.builder().build(), new GatewayMetrics(meterRegistry));
 
 	private final ChatCommand command = new ChatCommand(null, "Oi");
 
@@ -144,6 +151,44 @@ class GatewayAiProviderTest {
 		assertThat(event.usage()).isEqualTo(new TokenUsage(4, 2));
 		assertThat(event.model()).isEqualTo("gemini-2.5-flash");
 		verifyNoInteractions(cache);
+	}
+
+	@Test
+	void shouldRecordEmbeddingUsage() {
+		given(delegate.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT))
+				.willReturn(new EmbeddingResult(List.of(new float[] { 1f }), "gemini-embedding-001", null));
+
+		gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT);
+
+		UsageEvent event = recordedEvent();
+		assertThat(event.operation()).isEqualTo(UsageEvent.Operation.EMBEDDING);
+		assertThat(event.model()).isEqualTo("gemini-embedding-001");
+		verifyNoInteractions(cache);
+	}
+
+	@Test
+	void shouldAttributeBackgroundCallsToInformedClient() {
+		RequestContextHolder.resetRequestAttributes();
+		given(delegate.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT))
+				.willReturn(new EmbeddingResult(List.of(new float[] { 1f }), "gemini-embedding-001", null));
+
+		UsageAttribution.runAs(42L, "portal", "/v1/documents",
+				() -> gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT));
+
+		UsageEvent event = recordedEvent();
+		assertThat(event.clientId()).isEqualTo(42L);
+		assertThat(event.endpoint()).isEqualTo("/v1/documents");
+	}
+
+	@Test
+	void shouldCountCallsInMetrics() {
+		given(delegate.chat(command)).willReturn(new ChatResult("Olá", "m", "gemini", new TokenUsage(5, 3)));
+
+		gateway.chat(command);
+
+		assertThat(meterRegistry.get(GatewayMetrics.CALLS).tag("client", "portal").tag("outcome", "success")
+				.counter().count()).isEqualTo(1.0);
+		assertThat(meterRegistry.get(GatewayMetrics.TOKENS).tag("type", "output").counter().count()).isEqualTo(3.0);
 	}
 
 	@Test

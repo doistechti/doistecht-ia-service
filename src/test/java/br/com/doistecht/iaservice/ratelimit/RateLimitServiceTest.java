@@ -6,9 +6,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 import br.com.doistecht.iaservice.client.AuthenticatedClient;
+import br.com.doistecht.iaservice.metrics.GatewayMetrics;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisConnectionException;
 import io.lettuce.core.codec.RedisCodec;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -18,7 +20,8 @@ class RateLimitServiceTest {
 	void shouldAllowRequestWhenRedisIsUnavailable() {
 		RedisClient redisClient = mock(RedisClient.class);
 		given(redisClient.connect(any(RedisCodec.class))).willThrow(new RedisConnectionException("Redis fora do ar"));
-		RateLimitService service = new RateLimitService(redisClient, mock(StringRedisTemplate.class));
+		RateLimitService service = new RateLimitService(redisClient, mock(StringRedisTemplate.class),
+				new GatewayMetrics(new SimpleMeterRegistry()));
 
 		RateLimitDecision decision = service.consume(new AuthenticatedClient(1L, "portal", 10, 200));
 

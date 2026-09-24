@@ -18,6 +18,11 @@ spring:
       port: ${REDIS_PORT:6379}
       # Tempo curto: com o Redis fora do ar, o serviço segue sem cache e sem rate limit
       timeout: 2s
+  servlet:
+    multipart:
+      # Um pouco acima de ia-service.rag.max-document-size, para a mensagem de erro vir do serviço
+      max-file-size: 11MB
+      max-request-size: 12MB
   mvc:
     async:
       # Tempo máximo de uma resposta em streaming
@@ -38,6 +43,19 @@ ia-service:
     timeout: ${GEMINI_TIMEOUT:30s}
     # Modelo reserva, usado quando o principal está fora do ar ou sem cota; vazio desativa
     fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-2.5-flash-lite}
+    embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+  rag:
+    chunk-size: 1000
+    chunk-overlap: 200
+    max-document-size: 10MB
+    max-chunks: 500
+    embedding-batch-size: 50
+    embedding-batch-delay: 500ms
+    default-top-k: 4
+    max-top-k: 20
+    min-score: ${RAG_MIN_SCORE:0.5}
+    # Precisa ser igual à dimensão da coluna vector(768) criada na migration V4
+    embedding-dimensions: 768
   auth:
     key-cache-ttl: 30s
   cache:
@@ -77,10 +95,19 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
 
 management:
+  # Actuator em porta separada: no Docker, só a rede interna (Prometheus) alcança /actuator/prometheus
+  server:
+    port: ${MANAGEMENT_PORT:8081}
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ia-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 springdoc:
   swagger-ui:

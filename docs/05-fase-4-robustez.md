@@ -100,14 +100,15 @@ resilience4j:
 - [x] Falhas simuladas do Gemini não derrubam o serviço e geram respostas claras.
 - [x] Fallback comprovado por teste automatizado.
 - [x] `mvn verify` roda todos os testes localmente com apenas Docker instalado.
-- [ ] CI verde na `main` e badge visível no README (a confirmar após o primeiro push).
+- [x] CI verde na `main` e badge visível no README.
 - [x] Nenhum teste depende da API real do Gemini.
 
 ## Status
 
 Implementada. 111 testes automatizados (78 unitários e 33 de integração) passando com `mvn verify`, e cobertura de ~93% das linhas.
 Validado com `docker compose up`: o serviço sobe com a nova configuração, e um erro permanente do Gemini responde `502` na hora, sem retry nem fallback.
-**Pendente:** confirmar o CI verde no GitHub e validar com chave real do Gemini.
+CI confirmado verde no GitHub (build, testes e imagem Docker), inclusive após a atualização das actions para as versões mais recentes.
+**Pendente:** validar com chave real do Gemini.
 
 ## Fora desta fase
 

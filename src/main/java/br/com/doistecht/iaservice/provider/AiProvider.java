@@ -1,5 +1,6 @@
 package br.com.doistecht.iaservice.provider;
 
+import java.util.List;
 import reactor.core.publisher.Flux;
 
 /**
@@ -23,5 +24,13 @@ public interface AiProvider {
 	 * O conteúdo retornado é o JSON em texto, ainda não validado.
 	 */
 	ChatResult structured(ChatCommand command, String jsonSchema);
+
+	/**
+	 * Gera um embedding para cada texto, na mesma ordem.
+	 * <p>
+	 * Todos os vetores têm a mesma dimensão, fixa por configuração: ela precisa bater
+	 * com a coluna {@code vector} do banco, então não há fallback para outro modelo.
+	 */
+	EmbeddingResult embed(List<String> texts, EmbeddingPurpose purpose);
 
 }

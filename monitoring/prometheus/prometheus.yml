@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # O actuator fica na porta 8081, alcançável só pela rede interna do docker compose
+  - job_name: ia-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["ia-service:8081"]

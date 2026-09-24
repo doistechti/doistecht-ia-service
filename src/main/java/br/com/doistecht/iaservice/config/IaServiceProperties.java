@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.Map;
+import org.springframework.util.unit.DataSize;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -15,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
  * @param auth     autenticação de clientes
  * @param cache    cache de respostas
  * @param pricing  preço por milhão de tokens de cada modelo, usado para estimar custo
+ * @param rag      documentos e busca semântica
  */
 @Validated
 @ConfigurationProperties(prefix = "ia-service")
@@ -22,7 +24,8 @@ public record IaServiceProperties(
 		@NotBlank String adminKey,
 		@DefaultValue Auth auth,
 		@DefaultValue Cache cache,
-		Map<String, ModelPrice> pricing) {
+		Map<String, ModelPrice> pricing,
+		@DefaultValue Rag rag) {
 
 	public IaServiceProperties {
 		pricing = pricing == null ? Map.of() : Map.copyOf(pricing);
@@ -36,6 +39,31 @@ public record IaServiceProperties(
 	}
 
 	public record ModelPrice(BigDecimal inputPerMillion, BigDecimal outputPerMillion) {
+	}
+
+	/**
+	 * @param chunkSize           tamanho máximo de cada trecho, em caracteres
+	 * @param chunkOverlap        caracteres repetidos entre trechos vizinhos
+	 * @param maxDocumentSize     tamanho máximo do arquivo enviado
+	 * @param maxChunks           máximo de trechos por documento (limita chamadas de embedding)
+	 * @param embeddingBatchSize  trechos por chamada de embedding (o Gemini aceita até 100)
+	 * @param embeddingBatchDelay pausa entre lotes, para respeitar o limite por minuto do plano gratuito
+	 * @param defaultTopK         trechos usados como contexto quando o cliente não informa
+	 * @param maxTopK             máximo de trechos que o cliente pode pedir
+	 * @param minScore            similaridade mínima (0 a 1) para um trecho ser considerado relevante
+	 * @param embeddingDimensions dimensão dos embeddings; precisa ser igual à coluna {@code vector(768)} do banco
+	 */
+	public record Rag(
+			@DefaultValue("1000") int chunkSize,
+			@DefaultValue("200") int chunkOverlap,
+			@DefaultValue("10MB") DataSize maxDocumentSize,
+			@DefaultValue("500") int maxChunks,
+			@DefaultValue("50") int embeddingBatchSize,
+			@DefaultValue("500ms") Duration embeddingBatchDelay,
+			@DefaultValue("4") int defaultTopK,
+			@DefaultValue("20") int maxTopK,
+			@DefaultValue("0.5") double minScore,
+			@DefaultValue("768") int embeddingDimensions) {
 	}
 
 }

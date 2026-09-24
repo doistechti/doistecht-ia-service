@@ -1,6 +1,7 @@
 package br.com.doistecht.iaservice.provider.gemini;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -22,6 +23,7 @@ import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,8 @@ class GeminiResilienceIT extends AbstractIntegrationTest {
 	private static final String FALLBACK_PATH = ".*/models/gemini-2\\.5-flash-lite:generateContent";
 
 	private static final String STREAM_PATH = ".*/models/gemini-2\\.5-flash:streamGenerateContent";
+
+	private static final String EMBEDDING_PATH = ".*/models/gemini-embedding-001:batchEmbedContents";
 
 	static final WireMockServer GEMINI = new WireMockServer(options().dynamicPort());
 
@@ -211,6 +215,27 @@ class GeminiResilienceIT extends AbstractIntegrationTest {
 				.contains("event:done");
 	}
 
+	@Test
+	void shouldSendTaskTypeAndDimensionsWhenGeneratingEmbeddings() throws Exception {
+		GEMINI.stubFor(post(urlPathMatching(EMBEDDING_PATH)).willReturn(okJson(embeddingResponse(2))));
+
+		mockMvc.perform(MockMvcRequestBuilders.post("/v1/embeddings")
+						.header(ApiKeyFilter.HEADER, client.apiKey())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"texts": ["primeiro", "segundo"], "purpose": "query"}
+								"""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.model").value("gemini-embedding-001"))
+				.andExpect(jsonPath("$.dimensions").value(768))
+				.andExpect(jsonPath("$.embeddings.length()").value(2));
+
+		// O Spring AI 2.0.1 aceita task-type mas não o envia; por isso o provedor usa o SDK diretamente
+		GEMINI.verify(1, postRequestedFor(urlPathMatching(EMBEDDING_PATH))
+				.withRequestBody(containing("\"taskType\":\"RETRIEVAL_QUERY\""))
+				.withRequestBody(containing("\"outputDimensionality\":768")));
+	}
+
 	private ResultActions chat(String message) throws Exception {
 		return mockMvc.perform(MockMvcRequestBuilders.post("/v1/chat")
 				.header(ApiKeyFilter.HEADER, client.apiKey())
@@ -234,6 +259,12 @@ class GeminiResilienceIT extends AbstractIntegrationTest {
 				  "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 3, "totalTokenCount": 8},
 				  "modelVersion": "%s"
 				}""".formatted(text, model).replace("\n", "");
+	}
+
+	/** Resposta no formato da API batchEmbedContents, com vetores de 768 dimensões. */
+	private static String embeddingResponse(int count) {
+		String embedding = "{\"values\": [" + String.join(",", Collections.nCopies(768, "0.5")) + "]}";
+		return "{\"embeddings\": [" + String.join(",", Collections.nCopies(count, embedding)) + "]}";
 	}
 
 	private static ResponseDefinitionBuilder error(int status) {

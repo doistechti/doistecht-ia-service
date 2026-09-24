@@ -5,6 +5,8 @@ services:
     container_name: ia-service
     ports:
       - "8080:8080"
+      # Actuator (health e métricas): publicado só em localhost; o Prometheus usa a rede interna
+      - "127.0.0.1:8081:8081"
     env_file:
       - .env
     environment:
@@ -27,7 +29,8 @@ services:
     restart: unless-stopped
 
   postgres:
-    image: postgres:17-alpine
+    # PostgreSQL 17 com a extensão pgvector (busca vetorial do RAG)
+    image: pgvector/pgvector:0.8.6-pg17
     container_name: ia-service-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-ia_service}
@@ -59,6 +62,38 @@ services:
       retries: 10
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: ia-service-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - ia-service
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.4.11
+    container_name: ia-service-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/ia-service.json
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   redis-data:
+  prometheus-data:
+  grafana-data:

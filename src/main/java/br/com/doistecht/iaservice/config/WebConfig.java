@@ -19,7 +19,8 @@ public class WebConfig implements WebMvcConfigurer {
 	public void addInterceptors(InterceptorRegistry registry) {
 		// Apenas as rotas que chamam o modelo consomem limite e cota
 		registry.addInterceptor(new RateLimitInterceptor(rateLimitService))
-				.addPathPatterns("/v1/chat/**", "/v1/structured/**", "/v1/tasks/**");
+				.addPathPatterns("/v1/chat/**", "/v1/structured/**", "/v1/tasks/**", "/v1/embeddings/**",
+						"/v1/documents/**", "/v1/rag/**");
 	}
 
 }

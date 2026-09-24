@@ -3,6 +3,7 @@ package br.com.doistecht.iaservice;
 import br.com.doistecht.iaservice.client.ClientService;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -10,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * Base para testes de integração com PostgreSQL e Redis reais em containers.
@@ -21,9 +23,14 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  */
 @SpringBootTest(properties = {
 		"spring.ai.google.genai.api-key=test-gemini-key",
-		"ia-service.admin-key=" + AbstractIntegrationTest.ADMIN_KEY
+		"ia-service.admin-key=" + AbstractIntegrationTest.ADMIN_KEY,
+		// Os embeddings falsos dos testes (FakeEmbeddings) têm similaridades menores que os reais
+		"ia-service.rag.min-score=0.1",
+		"ia-service.rag.embedding-batch-delay=0ms"
 })
 @AutoConfigureMockMvc
+// Por padrão o Spring Boot desliga a exportação de métricas nos testes; o MetricsIT precisa dela
+@AutoConfigureMetrics
 @Testcontainers(disabledWithoutDocker = true)
 public abstract class AbstractIntegrationTest {
 
@@ -32,8 +39,10 @@ public abstract class AbstractIntegrationTest {
 	// Containers "singleton": sobem uma vez por execução e são reaproveitados por todas as classes
 	// de teste, assim como o contexto do Spring. Com @Container eles seriam parados ao fim de cada
 	// classe, e o contexto em cache ficaria apontando para containers que não existem mais.
+	// Mesma imagem do docker-compose: PostgreSQL 17 com a extensão pgvector
 	@ServiceConnection
-	static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine");
+	static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer(
+			DockerImageName.parse("pgvector/pgvector:0.8.6-pg17").asCompatibleSubstituteFor("postgres"));
 
 	@ServiceConnection(name = "redis")
 	static final GenericContainer<?> REDIS = new GenericContainer<>("redis:8-alpine").withExposedPorts(6379);

@@ -19,7 +19,7 @@ public record UsageEvent(
 		Instant occurredAt) {
 
 	public enum Operation {
-		CHAT("chat"), STREAM("stream"), STRUCTURED("structured");
+		CHAT("chat"), STREAM("stream"), STRUCTURED("structured"), EMBEDDING("embedding");
 
 		private final String value;
 

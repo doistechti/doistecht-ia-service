@@ -7,34 +7,41 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Dados da requisição HTTP que originou a chamada ao modelo.
+ * Dados da requisição que originou a chamada ao modelo.
  * <p>
  * Precisa ser capturado na thread da requisição: no streaming, o fim da resposta
- * acontece em outra thread, onde a requisição já não está disponível.
+ * acontece em outra thread, onde a requisição já não está disponível. Trabalhos em
+ * segundo plano informam o cliente com {@link UsageAttribution}.
  *
  * @param clientId    cliente autenticado, ou {@code null} fora de uma requisição de cliente
+ * @param clientName  nome do cliente, usado nas métricas
  * @param endpoint    rota chamada
  * @param bypassCache {@code true} quando o cliente enviou {@code Cache-Control: no-cache}
  */
-record CallContext(Long clientId, String endpoint, boolean bypassCache) {
+record CallContext(Long clientId, String clientName, String endpoint, boolean bypassCache) {
 
 	private static final int MAX_ENDPOINT_LENGTH = 200;
 
-	static final CallContext NONE = new CallContext(null, "internal", false);
+	static final CallContext NONE = new CallContext(null, null, "internal", false);
 
 	static CallContext current() {
+		CallContext attributed = UsageAttribution.current();
+		if (attributed != null) {
+			return attributed;
+		}
 		if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
 			return NONE;
 		}
 		HttpServletRequest request = attributes.getRequest();
-		Long clientId = request.getAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE) instanceof AuthenticatedClient client
-				? client.id()
+		AuthenticatedClient client = request.getAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE) instanceof AuthenticatedClient c
+				? c
 				: null;
 		String endpoint = request.getRequestURI();
 		if (endpoint.length() > MAX_ENDPOINT_LENGTH) {
 			endpoint = endpoint.substring(0, MAX_ENDPOINT_LENGTH);
 		}
-		return new CallContext(clientId, endpoint, isNoCache(request.getHeader("Cache-Control")));
+		return new CallContext(client == null ? null : client.id(), client == null ? null : client.name(), endpoint,
+				isNoCache(request.getHeader("Cache-Control")));
 	}
 
 	private static boolean isNoCache(String cacheControl) {
