@@ -1,0 +1,16 @@
+services:
+  ia-service:
+    build: .
+    image: doistecht/ia-service:latest
+    container_name: ia-service
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/8080'"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped

@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: ia-service
+  threads:
+    virtual:
+      enabled: true
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY}
+        chat:
+          model: ${GEMINI_MODEL:gemini-2.5-flash}
+
+ia-service:
+  api-key: ${IA_SERVICE_API_KEY}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
