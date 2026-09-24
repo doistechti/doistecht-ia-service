@@ -116,7 +116,9 @@ public class GatewayAiProvider implements AiProvider {
 			throw ex;
 		}
 		record(context, operation, result.model(), result.usage(), start, false, true);
-		if (cacheable.test(result)) {
+		// Respostas do modelo reserva não vão para o cache: depois que o principal voltar,
+		// os clientes não devem continuar recebendo a resposta do modelo mais fraco
+		if (!result.fallback() && cacheable.test(result)) {
 			cache.put(key, result);
 		}
 		return result;

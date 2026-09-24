@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Um novo push na mesma branch cancela a execução anterior
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Testes unitários, de integração (Testcontainers usa o Docker do runner) e cobertura mínima
+      - name: Build e testes
+        run: ./mvnw -B verify
+
+      - name: Relatórios de testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorios-de-testes
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          if-no-files-found: ignore
+
+      - name: Relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-de-cobertura
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+
+  docker:
+    name: Imagem Docker
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Valida que a imagem é construída; a publicação em um registry fica para quando houver deploy
+      - name: Build da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: doistecht/ia-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

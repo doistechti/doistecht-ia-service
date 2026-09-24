@@ -24,11 +24,14 @@ public record TaskResponse(
 		String model,
 
 		@Schema(description = "Provedor utilizado", example = "gemini")
-		String provider) {
+		String provider,
+
+		@Schema(description = "true quando o modelo principal falhou e a resposta veio do modelo reserva")
+		boolean fallback) {
 
 	public static TaskResponse from(TaskResult result) {
 		return new TaskResponse(result.template(), result.version(), result.content(), result.data(),
-				result.model(), result.provider());
+				result.model(), result.provider(), result.fallback());
 	}
 
 }

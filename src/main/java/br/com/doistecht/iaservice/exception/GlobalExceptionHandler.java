@@ -33,12 +33,25 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
+	/**
+	 * {@code 503} quando o provedor está fora do ar (vale tentar mais tarde);
+	 * {@code 502} quando o provedor recusou a chamada.
+	 */
 	@ExceptionHandler(AiProviderException.class)
-	ProblemDetail handleAiProvider(AiProviderException ex) {
-		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY,
-				"Não foi possível obter resposta do provedor de IA. Tente novamente em instantes.");
+	ResponseEntity<ProblemDetail> handleAiProvider(AiProviderException ex) {
+		boolean unavailable = ex.getReason() == AiProviderException.Reason.UNAVAILABLE;
+		HttpStatus status = unavailable ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.BAD_GATEWAY;
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, unavailable
+				? "O provedor de IA está indisponível no momento. Tente novamente em instantes."
+				: "Não foi possível obter resposta do provedor de IA.");
 		problem.setProperty("provider", ex.getProvider());
-		return problem;
+
+		var response = ResponseEntity.status(status);
+		if (ex.getRetryAfterSeconds() != null) {
+			problem.setProperty("retryAfterSeconds", ex.getRetryAfterSeconds());
+			response.header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()));
+		}
+		return response.body(problem);
 	}
 
 	@ExceptionHandler(RateLimitExceededException.class)

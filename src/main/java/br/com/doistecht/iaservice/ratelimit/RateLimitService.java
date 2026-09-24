@@ -16,7 +16,6 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -36,7 +35,7 @@ public class RateLimitService {
 
 	private static final Duration REDIS_TIMEOUT = Duration.ofSeconds(2);
 
-	private final LettuceConnectionFactory connectionFactory;
+	private final RedisClient redisClient;
 
 	private final StringRedisTemplate redis;
 
@@ -44,8 +43,8 @@ public class RateLimitService {
 
 	private volatile ProxyManager<byte[]> proxyManager;
 
-	public RateLimitService(LettuceConnectionFactory connectionFactory, StringRedisTemplate redis) {
-		this.connectionFactory = connectionFactory;
+	public RateLimitService(RedisClient rateLimitRedisClient, StringRedisTemplate redis) {
+		this.redisClient = rateLimitRedisClient;
 		this.redis = redis;
 	}
 
@@ -113,14 +112,14 @@ public class RateLimitService {
 		return Math.max(1, Duration.ofNanos(nanos).toSeconds() + 1);
 	}
 
-	// Criado sob demanda: o cliente Redis do Spring só fica disponível depois que o contexto sobe
+	// Criado sob demanda para que o serviço suba mesmo com o Redis fora do ar
 	private ProxyManager<byte[]> proxyManager() {
 		ProxyManager<byte[]> manager = proxyManager;
 		if (manager == null) {
 			synchronized (this) {
 				manager = proxyManager;
 				if (manager == null) {
-					manager = Bucket4jLettuce.casBasedBuilder((RedisClient) connectionFactory.getNativeClient())
+					manager = Bucket4jLettuce.casBasedBuilder(redisClient)
 							.expirationAfterWrite(
 									ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(1)))
 							.requestTimeout(REDIS_TIMEOUT)

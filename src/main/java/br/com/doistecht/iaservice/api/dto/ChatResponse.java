@@ -12,10 +12,13 @@ public record ChatResponse(
 		String model,
 
 		@Schema(description = "Provedor utilizado", example = "gemini")
-		String provider) {
+		String provider,
+
+		@Schema(description = "true quando o modelo principal falhou e a resposta veio do modelo reserva")
+		boolean fallback) {
 
 	public static ChatResponse from(ChatResult result) {
-		return new ChatResponse(result.content(), result.model(), result.provider());
+		return new ChatResponse(result.content(), result.model(), result.provider(), result.fallback());
 	}
 
 }

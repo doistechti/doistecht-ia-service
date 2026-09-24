@@ -222,6 +222,22 @@ class ChatControllerTest extends ApiControllerTestSupport {
 	}
 
 	@Test
+	void shouldReturnServiceUnavailableWhenProviderIsDown() throws Exception {
+		given(aiProvider.chat(any(ChatCommand.class))).willThrow(new AiProviderException("gemini",
+				AiProviderException.Reason.UNAVAILABLE, "circuito aberto", 30L, null));
+
+		mockMvc.perform(post("/v1/chat")
+						.header(ApiKeyFilter.HEADER, CLIENT_KEY)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"message": "Oi"}
+								"""))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(header().string("Retry-After", "30"))
+				.andExpect(jsonPath("$.retryAfterSeconds").value(30));
+	}
+
+	@Test
 	void shouldReturnBadGatewayWhenProviderFails() throws Exception {
 		given(aiProvider.chat(any(ChatCommand.class)))
 				.willThrow(new AiProviderException("gemini", "falhou", null));

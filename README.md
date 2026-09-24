@@ -1,10 +1,12 @@
 # doistecht-ia-service
 
+[![CI](https://github.com/doistechti/doistecht-ia-service/actions/workflows/ci.yml/badge.svg)](https://github.com/doistechti/doistecht-ia-service/actions/workflows/ci.yml)
+
 AI Gateway em Java que disponibiliza modelos de IA para diversos projetos por meio de uma API única.
 
 Os projetos clientes não chamam o provedor de IA diretamente: eles consomem este serviço, que centraliza autenticação, controle de uso, prompts e observabilidade.
 
-> **Status:** Fase 3 (Governança) concluída — veja o [roadmap](docs/01-escopo-do-projeto.md#5-roadmap).
+> **Status:** Fase 4 (Robustez) concluída — veja o [roadmap](docs/01-escopo-do-projeto.md#5-roadmap).
 
 ## Funcionalidades
 
@@ -17,6 +19,7 @@ Os projetos clientes não chamam o provedor de IA diretamente: eles consomem est
 - **Rate limit por minuto e cota diária** por cliente (Bucket4j + Redis)
 - **Cache de respostas** por cliente no Redis
 - **Registro de uso**: tokens, latência e custo estimado por chamada: `/v1/usage` e `/v1/admin/usage`
+- **Resiliência**: retry, circuit breaker e modelo reserva quando o Gemini falha
 
 ## Stack
 
@@ -25,9 +28,11 @@ Os projetos clientes não chamam o provedor de IA diretamente: eles consomem est
 - Gemini (Google AI Studio)
 - PostgreSQL 17 + Flyway + Spring Data JPA
 - Redis 8 + Bucket4j + Caffeine
+- Resilience4j
 - Maven
 - springdoc-openapi (Swagger UI)
-- JUnit 5, Mockito, Testcontainers
+- JUnit 5, Mockito, Testcontainers, WireMock, JaCoCo
+- GitHub Actions
 - Docker / Docker Compose
 
 ## Como executar
@@ -48,6 +53,8 @@ cp .env.example .env
 |---|---|---|
 | `GEMINI_API_KEY` | Sim | Chave do Google AI Studio |
 | `GEMINI_MODEL` | Não | Modelo Gemini (padrão `gemini-2.5-flash`) |
+| `GEMINI_FALLBACK_MODEL` | Não | Modelo reserva (padrão `gemini-2.5-flash-lite`; vazio desativa) |
+| `GEMINI_TIMEOUT` | Não | Tempo máximo de cada chamada ao Gemini (padrão `30s`) |
 | `IA_SERVICE_ADMIN_KEY` | Sim | Chave de administrador, exigida nas rotas `/v1/admin/**` |
 | `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` | Não | Credenciais do PostgreSQL (padrão `ia_service`) |
 | `DB_URL` | Não | URL JDBC (padrão `jdbc:postgresql://localhost:5433/ia_service`) |
@@ -244,7 +251,8 @@ Erros seguem o formato `ProblemDetail` (RFC 9457):
 | `409` | Cliente com nome já cadastrado |
 | `422` | O modelo não gerou JSON válido para o schema |
 | `429` | Limite por minuto ou cota diária atingidos |
-| `502` | Falha ao obter resposta do provedor de IA |
+| `502` | O provedor de IA recusou a chamada (erro que não se resolve tentando de novo) |
+| `503` | O provedor de IA está indisponível (com `Retry-After` quando o circuit breaker está aberto) |
 
 ## Endpoints úteis
 
@@ -257,12 +265,27 @@ Erros seguem o formato `ProblemDetail` (RFC 9457):
 ## Testes
 
 ```bash
-./mvnw test
+./mvnw test      # testes unitários
+./mvnw verify    # unitários + integração + relatório e verificação de cobertura
 ```
 
-Os testes de integração sobem PostgreSQL e Redis reais com Testcontainers e são ignorados quando o Docker não está disponível. Nenhum teste chama a API real do Gemini.
+- **Unitários** (`*Test`): rodam sem Docker e sem rede.
+- **Integração** (`*IT`): sobem PostgreSQL e Redis reais com Testcontainers; são ignorados quando o Docker não está disponível.
+- **Resiliência de ponta a ponta** (`GeminiResilienceIT`): a API do Gemini é simulada com WireMock, e o SDK do Google faz chamadas HTTP de verdade.
+- **Cobertura**: relatório em `target/site/jacoco/index.html`; o build falha abaixo de 80% de linhas.
+
+Nenhum teste chama a API real do Gemini. O CI (GitHub Actions) roda `./mvnw verify` a cada push e pull request, e valida a imagem Docker na `main`.
 
 ## Resiliência
+
+Cada chamada ao Gemini passa por:
+
+1. **Timeout** por chamada (`GEMINI_TIMEOUT`).
+2. **Retry** com backoff exponencial, apenas para erros transitórios (408, 429, 5xx, timeout). Erros como `400` não são repetidos.
+3. **Circuit breaker** por modelo: após muitas falhas seguidas, o modelo deixa de ser chamado por 30 s, e as requisições falham na hora em vez de esperar.
+4. **Modelo reserva** (`GEMINI_FALLBACK_MODEL`): se o modelo principal continuar falhando, a resposta vem do reserva, com `"fallback": true`. Respostas do reserva não vão para o cache.
+
+O streaming usa só o modelo principal, sem novas tentativas: depois que o primeiro trecho chega ao cliente, não há como recomeçar a resposta de forma transparente.
 
 Se o Redis ficar indisponível, o serviço continua respondendo sem cache e sem aplicar limites (*fail open*), registrando o problema no log. Cada operação no Redis tem timeout de 2 segundos.
 

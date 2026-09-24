@@ -13,10 +13,13 @@ public record StructuredResponse(
 		String model,
 
 		@Schema(description = "Provedor utilizado", example = "gemini")
-		String provider) {
+		String provider,
+
+		@Schema(description = "true quando o modelo principal falhou e a resposta veio do modelo reserva")
+		boolean fallback) {
 
 	public static StructuredResponse from(StructuredResult result) {
-		return new StructuredResponse(result.data(), result.model(), result.provider());
+		return new StructuredResponse(result.data(), result.model(), result.provider(), result.fallback());
 	}
 
 }

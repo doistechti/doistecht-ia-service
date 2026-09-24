@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.doistecht.iaservice.AbstractIntegrationTest;
+import br.com.doistecht.iaservice.AbstractMockedProviderIT;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatResult;
 import br.com.doistecht.iaservice.security.ApiKeyFilter;
@@ -25,7 +25,7 @@ import org.springframework.http.MediaType;
  * Fluxo completo com banco real: migrations, seeds, versionamento, templates por cliente
  * e execução de tarefas.
  */
-class TemplateAdminIntegrationTest extends AbstractIntegrationTest {
+class TemplateAdminIT extends AbstractMockedProviderIT {
 
 	@Test
 	void shouldLoadSeedTemplatesFromMigrations() throws Exception {

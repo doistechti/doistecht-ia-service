@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.doistecht.iaservice.AbstractIntegrationTest;
+import br.com.doistecht.iaservice.AbstractMockedProviderIT;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatResult;
 import br.com.doistecht.iaservice.security.ApiKeyFilter;
@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 /**
  * Ciclo de vida de um cliente: cadastro, uso da chave, rotação e desativação.
  */
-class ClientAdminIntegrationTest extends AbstractIntegrationTest {
+class ClientAdminIT extends AbstractMockedProviderIT {
 
 	@Autowired
 	private ClientRepository clientRepository;

@@ -1,16 +1,11 @@
 package br.com.doistecht.iaservice;
 
-import static org.mockito.BDDMockito.given;
-
 import br.com.doistecht.iaservice.client.ClientService;
-import br.com.doistecht.iaservice.provider.gemini.GeminiProvider;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -20,11 +15,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * Base para testes de integração com PostgreSQL e Redis reais em containers.
  * Os testes são ignorados quando o Docker não está disponível.
  * <p>
- * O contexto é compartilhado entre as classes de teste; por isso cada teste cria
- * seus próprios clientes (com nomes únicos), evitando interferência de limites e cache.
- * <p>
- * Apenas o Gemini é simulado: o {@code GatewayAiProvider} real (cache e registro de uso)
- * envolve o mock, então esses comportamentos também são testados.
+ * O contexto do Spring é compartilhado entre as classes com a mesma configuração; por isso
+ * cada teste cria seus próprios clientes (com nomes únicos), evitando interferência de
+ * limites e cache.
  */
 @SpringBootTest(properties = {
 		"spring.ai.google.genai.api-key=test-gemini-key",
@@ -55,14 +48,6 @@ public abstract class AbstractIntegrationTest {
 
 	@Autowired
 	protected ClientService clientService;
-
-	@MockitoBean
-	protected GeminiProvider gemini;
-
-	@BeforeEach
-	void stubProviderName() {
-		given(gemini.name()).willReturn("gemini");
-	}
 
 	/** Cria um cliente com nome único e retorna seu id e API key. */
 	protected TestClient createClient(int rateLimitPerMinute, int dailyQuota) {

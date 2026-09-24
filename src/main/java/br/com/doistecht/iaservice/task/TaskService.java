@@ -53,12 +53,12 @@ public class TaskService {
 			StructuredResult result = structuredOutputService.generate(command,
 					objectMapper.readTree(template.getOutputSchema()));
 			return new TaskResult(template.getName(), template.getVersion(), null, result.data(), result.model(),
-					result.provider());
+					result.provider(), result.fallback());
 		}
 
 		ChatResult result = aiProvider.chat(command);
 		return new TaskResult(template.getName(), template.getVersion(), result.content(), null, result.model(),
-				result.provider());
+				result.provider(), result.fallback());
 	}
 
 }

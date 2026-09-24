@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import br.com.doistecht.iaservice.AbstractIntegrationTest;
+import br.com.doistecht.iaservice.AbstractMockedProviderIT;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatResult;
@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.ResultActions;
  * Registro de uso e cache de respostas, passando pelo GatewayAiProvider real,
  * com PostgreSQL e Redis reais.
  */
-class UsageIntegrationTest extends AbstractIntegrationTest {
+class UsageIT extends AbstractMockedProviderIT {
 
 	@Autowired
 	private UsageRecordRepository usageRepository;

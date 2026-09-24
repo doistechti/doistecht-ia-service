@@ -51,7 +51,7 @@ public class StructuredOutputService {
 			else {
 				errors = validator.validate(schema, data);
 				if (errors.isEmpty()) {
-					return new StructuredResult(data, result.model(), result.provider());
+					return new StructuredResult(data, result.model(), result.provider(), result.fallback());
 				}
 			}
 			log.warn("Resposta estruturada inválida (tentativa {}/{}): {}", attempt, MAX_ATTEMPTS, errors);

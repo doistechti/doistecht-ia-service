@@ -28,9 +28,16 @@ spring:
         api-key: ${GEMINI_API_KEY}
         chat:
           model: ${GEMINI_MODEL:gemini-2.5-flash}
+    # Desliga o retry interno do Spring AI: novas tentativas ficam só com o Resilience4j
+    retry:
+      max-attempts: 0
 
 ia-service:
   admin-key: ${IA_SERVICE_ADMIN_KEY}
+  gemini:
+    timeout: ${GEMINI_TIMEOUT:30s}
+    # Modelo reserva, usado quando o principal está fora do ar ou sem cota; vazio desativa
+    fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-2.5-flash-lite}
   auth:
     key-cache-ttl: 30s
   cache:
@@ -47,6 +54,27 @@ ia-service:
     "[gemini-2.5-pro]":
       input-per-million: 1.25
       output-per-million: 10.00
+
+# Padrões aplicados ao retry e ao circuit breaker de cada modelo (ex.: "gemini:gemini-2.5-flash").
+# Quais erros contam (só os transitórios) é definido no código, em ModelFallbackExecutor.
+resilience4j:
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
 
 management:
   endpoints:
