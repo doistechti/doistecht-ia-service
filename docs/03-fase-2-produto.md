@@ -125,7 +125,7 @@ CREATE TABLE prompt_template (
 
 Implementada. 41 testes automatizados passando, incluindo testes de integração com PostgreSQL real (Testcontainers) cobrindo migrations, seeds, versionamento, ativação/desativação e execução de tarefas.
 Validado com `docker compose up`: serviço + PostgreSQL, seeds carregados e respostas de erro (`400`, `404`, `502`, evento `error` no streaming) conferidas.
-**Pendente:** validar streaming e output estruturado com chave real do Gemini.
+**Validado com a API real do Gemini na fase 6** (25/09/2026), com os modelos atualizados para `gemini-3.8-flash` e `gemini-3.5-flash-lite` — veja a [fase 6](07-fase-6-extra.md#validação-com-a-api-real-do-gemini).
 
 ## Fora desta fase
 

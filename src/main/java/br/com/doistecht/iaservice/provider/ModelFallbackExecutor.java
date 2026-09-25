@@ -9,11 +9,13 @@ import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 /**
  * Executa chamadas a um provedor com retry, circuit breaker e modelo reserva (fallback).
@@ -69,6 +71,26 @@ public class ModelFallbackExecutor {
 		return primaryModel;
 	}
 
+	/** Modelo reserva, ou {@code null} se o fallback estiver desativado. */
+	public String fallbackModel() {
+		return fallbackModel;
+	}
+
+	/**
+	 * Situação pelos circuit breakers: fora do ar se nenhum modelo pode ser chamado,
+	 * degradado se só o reserva está disponível.
+	 */
+	public ProviderHealth health() {
+		boolean primaryOpen = primaryGuard.isOpen();
+		if (!primaryOpen) {
+			return ProviderHealth.up("Modelo " + primaryModel + " disponível");
+		}
+		if (fallbackGuard != null && !fallbackGuard.isOpen()) {
+			return ProviderHealth.degraded("Circuito do modelo " + primaryModel + " aberto; usando " + fallbackModel);
+		}
+		return ProviderHealth.down("Circuito do modelo " + primaryModel + " aberto");
+	}
+
 	/**
 	 * @param call chamada ao provedor, que recebe o nome do modelo a usar
 	 */
@@ -90,6 +112,36 @@ public class ModelFallbackExecutor {
 				throw logged(toProviderException(fallbackFailure, fallbackGuard), fallbackModel);
 			}
 		}
+	}
+
+	/**
+	 * Versão para streaming. Trocar de modelo só é seguro <b>antes</b> do primeiro trecho: depois
+	 * disso o cliente já recebeu parte da resposta e não há como recomeçar de forma transparente.
+	 * <ul>
+	 * <li>circuito do modelo principal aberto: começa direto pelo reserva;</li>
+	 * <li>erro transitório antes do primeiro trecho: repete o pedido no modelo reserva;</li>
+	 * <li>erro depois do primeiro trecho: o erro segue para o cliente.</li>
+	 * </ul>
+	 * Não há novas tentativas no mesmo modelo, para o cliente não esperar demais pelo primeiro trecho.
+	 *
+	 * @param call abre o stream com o modelo informado
+	 */
+	public <T> Flux<T> stream(Function<String, Flux<T>> call) {
+		return Flux.defer(() -> {
+			if (fallbackGuard != null && primaryGuard.isOpen() && !fallbackGuard.isOpen()) {
+				return call.apply(fallbackModel);
+			}
+			AtomicBoolean emitted = new AtomicBoolean();
+			Flux<T> primary = call.apply(primaryModel).doOnNext(item -> emitted.set(true));
+			if (fallbackGuard == null) {
+				return primary;
+			}
+			return primary.onErrorResume(ex -> !emitted.get() && isRecoverable(ex), ex -> {
+				log.warn("Streaming no modelo {} falhou antes do primeiro trecho ({}); usando o modelo reserva {}",
+						primaryModel, describe(ex), fallbackModel);
+				return call.apply(fallbackModel);
+			});
+		});
 	}
 
 	/** Converte um erro do provedor na exceção padrão, classificando se é transitório. */
@@ -157,6 +209,11 @@ public class ModelFallbackExecutor {
 		<T> T run(Supplier<T> call) {
 			// Retry por fora: cada tentativa passa pelo circuit breaker e conta na estatística dele
 			return Retry.decorateSupplier(retry, CircuitBreaker.decorateSupplier(circuitBreaker, call)).get();
+		}
+
+		boolean isOpen() {
+			var state = circuitBreaker.getState();
+			return state == CircuitBreaker.State.OPEN || state == CircuitBreaker.State.FORCED_OPEN;
 		}
 
 		Long secondsUntilHalfOpen() {

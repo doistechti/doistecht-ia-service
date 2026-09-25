@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import br.com.doistecht.iaservice.client.AuthenticatedClient;
+import br.com.doistecht.iaservice.config.TestProperties;
 import br.com.doistecht.iaservice.metrics.GatewayMetrics;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
@@ -48,7 +49,8 @@ class GatewayAiProviderTest {
 
 	private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-	private final GatewayAiProvider gateway = new GatewayAiProvider(delegate, cache, usageRecorder,
+	private final GatewayAiProvider gateway = new GatewayAiProvider(
+			new ProviderRouter(List.of(delegate), TestProperties.defaults()), cache, usageRecorder,
 			new JsonSchemaValidator(), JsonMapper.builder().build(), new GatewayMetrics(meterRegistry));
 
 	private final ChatCommand command = new ChatCommand(null, "Oi");
@@ -158,7 +160,7 @@ class GatewayAiProviderTest {
 		given(delegate.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT))
 				.willReturn(new EmbeddingResult(List.of(new float[] { 1f }), "gemini-embedding-001", null));
 
-		gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT);
+		gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT, null);
 
 		UsageEvent event = recordedEvent();
 		assertThat(event.operation()).isEqualTo(UsageEvent.Operation.EMBEDDING);
@@ -173,7 +175,7 @@ class GatewayAiProviderTest {
 				.willReturn(new EmbeddingResult(List.of(new float[] { 1f }), "gemini-embedding-001", null));
 
 		UsageAttribution.runAs(42L, "portal", "/v1/documents",
-				() -> gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT));
+				() -> gateway.embed(List.of("texto"), EmbeddingPurpose.DOCUMENT, null));
 
 		UsageEvent event = recordedEvent();
 		assertThat(event.clientId()).isEqualTo(42L);

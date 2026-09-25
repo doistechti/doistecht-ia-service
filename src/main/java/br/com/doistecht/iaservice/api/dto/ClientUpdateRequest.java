@@ -3,6 +3,7 @@ package br.com.doistecht.iaservice.api.dto;
 import br.com.doistecht.iaservice.client.ClientService.ClientChanges;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
 /** Campos omitidos permanecem como estão. */
@@ -19,10 +20,15 @@ public record ClientUpdateRequest(
 		Integer dailyQuota,
 
 		@Schema(description = "false desativa o cliente: a chave deixa de funcionar", example = "false")
-		Boolean active) {
+		Boolean active,
+
+		@Schema(description = "Provedor de IA padrão do cliente; texto vazio volta a usar o padrão global",
+				example = "ollama")
+		@Pattern(regexp = "|[a-z0-9-]{1,30}", message = "nome de provedor inválido")
+		String defaultProvider) {
 
 	public ClientChanges toChanges() {
-		return new ClientChanges(rateLimitPerMinute, dailyQuota, active);
+		return new ClientChanges(rateLimitPerMinute, dailyQuota, active, defaultProvider);
 	}
 
 }

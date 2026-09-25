@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>doistecht AI Gateway · Clientes</title>
+  <meta name="description" content="Cadastro dos projetos clientes do doistecht-ia-service">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <div>
+        <h1>doistecht AI Gateway</h1>
+        <p class="subtitle">Administração · clientes · <a href="index.html">voltar para a demo</a></p>
+      </div>
+    </div>
+
+    <form id="admin-key-form" class="key-form" autocomplete="off">
+      <label for="admin-key">Chave de administrador</label>
+      <div class="inline">
+        <input id="admin-key" type="password" placeholder="IA_SERVICE_ADMIN_KEY" spellcheck="false">
+        <button type="submit">Conectar</button>
+      </div>
+    </form>
+  </header>
+
+  <div id="alert" class="alert" role="alert" hidden></div>
+
+  <main class="admin">
+    <section class="panel" aria-labelledby="create-title">
+      <h2 id="create-title">Novo cliente</h2>
+      <form id="client-form" class="stack" novalidate>
+        <div class="stack">
+          <label for="client-name">Nome do projeto</label>
+          <input id="client-name" name="name" type="text" maxlength="100" placeholder="portal-atendimento" required>
+        </div>
+        <div class="grid-3">
+          <div class="stack">
+            <label for="client-rate">Requisições por minuto</label>
+            <input id="client-rate" name="rateLimitPerMinute" type="number" min="1" max="10000" placeholder="10">
+          </div>
+          <div class="stack">
+            <label for="client-quota">Requisições por dia</label>
+            <input id="client-quota" name="dailyQuota" type="number" min="1" max="1000000" placeholder="200">
+          </div>
+          <div class="stack">
+            <label for="client-provider">Provedor padrão</label>
+            <select id="client-provider" name="defaultProvider">
+              <option value="">Padrão do gateway</option>
+              <option value="gemini">gemini</option>
+              <option value="ollama">ollama</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Campos de limite em branco usam o padrão (10 por minuto e 200 por dia).</p>
+        <div>
+          <button type="submit" id="client-submit">Cadastrar cliente</button>
+        </div>
+      </form>
+
+      <div id="created" class="result" hidden aria-live="polite">
+        <p class="hint">Cliente <strong id="created-name"></strong> cadastrado. Guarde a API key agora: ela não será exibida de novo.</p>
+        <div class="inline">
+          <label class="sr-only" for="created-key">API key gerada</label>
+          <input id="created-key" type="text" class="mono" readonly>
+          <button type="button" id="copy-key" class="secondary">Copiar</button>
+          <button type="button" id="use-key">Usar na demo</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="list-title">
+      <div class="usage-header">
+        <h2 id="list-title">Clientes cadastrados</h2>
+        <button type="button" id="clients-refresh" class="secondary">Atualizar</button>
+      </div>
+      <table class="documents">
+        <caption class="sr-only">Clientes cadastrados</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">Chave</th>
+            <th scope="col">Por minuto</th>
+            <th scope="col">Por dia</th>
+            <th scope="col">Provedor</th>
+            <th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody id="clients"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    A chave de administrador fica apenas nesta aba do navegador (sessionStorage) e é enviada no header <code>X-API-Key</code>.
+    Página de demonstração: em produção, o cadastro deve ficar atrás de um acesso restrito.
+  </footer>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

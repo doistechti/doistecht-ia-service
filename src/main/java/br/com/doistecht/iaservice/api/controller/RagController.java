@@ -30,7 +30,8 @@ public class RagController {
 	@PostMapping("/ask")
 	public RagAnswer ask(@Valid @RequestBody RagRequest request,
 			@Parameter(hidden = true) @RequestAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE) AuthenticatedClient client) {
-		return ragService.ask(client.id(), request.question(), request.topK(), request.documentIds());
+		return ragService.ask(client.id(), request.question(), request.topK(), request.documentIds(),
+				request.provider());
 	}
 
 }

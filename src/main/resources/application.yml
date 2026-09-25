@@ -32,17 +32,35 @@ spring:
       genai:
         api-key: ${GEMINI_API_KEY}
         chat:
-          model: ${GEMINI_MODEL:gemini-2.5-flash}
+          model: ${GEMINI_MODEL:gemini-3.8-flash}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
     # Desliga o retry interno do Spring AI: novas tentativas ficam só com o Resilience4j
     retry:
       max-attempts: 0
+    # Com dois provedores há dois ChatModel; o ChatClient.Builder automático exige um só.
+    # O projeto cria os ChatClient em cada provedor, então o automático não é necessário.
+    chat:
+      client:
+        enabled: false
 
 ia-service:
   admin-key: ${IA_SERVICE_ADMIN_KEY}
+  providers:
+    # Usado quando nem a requisição nem o cliente escolhem um provedor
+    default-provider: ${AI_DEFAULT_PROVIDER:gemini}
+    # Usado quando o escolhido está fora do ar; vazio desativa. Precisa estar habilitado.
+    fallback: ${AI_FALLBACK_PROVIDER:ollama}
+  ollama:
+    enabled: ${OLLAMA_ENABLED:false}
+    chat-model: ${OLLAMA_CHAT_MODEL:llama3.2:3b}
+    embedding-model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    connect-timeout: 2s
+    read-timeout: ${OLLAMA_TIMEOUT:120s}
   gemini:
     timeout: ${GEMINI_TIMEOUT:30s}
     # Modelo reserva, usado quando o principal está fora do ar ou sem cota; vazio desativa
-    fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-2.5-flash-lite}
+    fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-3.5-flash-lite}
     embedding-model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
   rag:
     chunk-size: 1000
@@ -53,16 +71,27 @@ ia-service:
     embedding-batch-delay: 500ms
     default-top-k: 4
     max-top-k: 20
-    min-score: ${RAG_MIN_SCORE:0.5}
+    # Calibrado com o gemini-embedding-001: perguntas relevantes ficaram acima de 0,64 e
+    # perguntas sem relação com o documento, perto de 0,55
+    min-score: ${RAG_MIN_SCORE:0.6}
     # Precisa ser igual à dimensão da coluna vector(768) criada na migration V4
     embedding-dimensions: 768
+    # Provedor fixo dos embeddings dos documentos: trocar exige reprocessar os documentos
+    embedding-provider: ${RAG_EMBEDDING_PROVIDER:gemini}
   auth:
     key-cache-ttl: 30s
   cache:
     enabled: ${RESPONSE_CACHE_ENABLED:true}
     ttl: ${RESPONSE_CACHE_TTL:1h}
-  # Preços em dólares por milhão de tokens (plano pago), usados só para estimar custo
+  # Preços em dólares por milhão de tokens (plano pago), usados só para estimar custo.
+  # Fonte: https://ai.google.dev/gemini-api/docs/pricing (consultado em 25/09/2026)
   pricing:
+    "[gemini-3.8-flash]":
+      input-per-million: 0.75
+      output-per-million: 3.75
+    "[gemini-3.5-flash-lite]":
+      input-per-million: 0.30
+      output-per-million: 2.50
     "[gemini-2.5-flash]":
       input-per-million: 0.30
       output-per-million: 2.50
@@ -95,6 +124,10 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
 
 management:
+  endpoint:
+    health:
+      # Detalhes (incluindo a situação de cada provedor de IA) só na porta interna do Actuator
+      show-details: always
   # Actuator em porta separada: no Docker, só a rede interna (Prometheus) alcança /actuator/prometheus
   server:
     port: ${MANAGEMENT_PORT:8081}

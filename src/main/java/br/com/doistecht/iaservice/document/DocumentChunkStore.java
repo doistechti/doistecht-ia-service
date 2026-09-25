@@ -41,16 +41,19 @@ public class DocumentChunkStore {
 	/**
 	 * Busca os trechos mais parecidos com o vetor informado, entre os documentos prontos do cliente.
 	 *
-	 * @param documentIds restringe a busca a estes documentos; vazio busca em todos
+	 * @param embeddingModel só compara com trechos indexados pelo mesmo modelo: vetores de modelos
+	 *                       diferentes não são comparáveis, mesmo tendo a mesma dimensão
+	 * @param documentIds    restringe a busca a estes documentos; vazio busca em todos
 	 */
 	@Transactional(readOnly = true)
-	public List<ChunkMatch> search(Long clientId, float[] query, int topK, List<Long> documentIds) {
+	public List<ChunkMatch> search(Long clientId, float[] query, String embeddingModel, int topK,
+			List<Long> documentIds) {
 		// Com filtro por cliente, o índice HNSW sozinho pode devolver menos de topK trechos;
 		// a busca iterativa do pgvector 0.8 continua procurando até completar o resultado
 		jdbc.execute("SET LOCAL hnsw.iterative_scan = relaxed_order");
 
 		String vector = toVectorLiteral(query);
-		List<Object> params = new ArrayList<>(List.of(vector, clientId));
+		List<Object> params = new ArrayList<>(List.of(vector, clientId, embeddingModel));
 		String documentFilter = "";
 		if (documentIds != null && !documentIds.isEmpty()) {
 			documentFilter = " AND c.document_id IN (" + String.join(", ", Collections.nCopies(documentIds.size(), "?"))
@@ -66,7 +69,7 @@ public class DocumentChunkStore {
 				       1 - (c.embedding <=> ?::vector) AS score
 				FROM document_chunk c
 				JOIN document d ON d.id = c.document_id
-				WHERE c.client_id = ? AND d.status = 'READY'%s
+				WHERE c.client_id = ? AND d.embedding_model = ? AND d.status = 'READY'%s
 				ORDER BY c.embedding <=> ?::vector
 				LIMIT ?
 				""".formatted(documentFilter);

@@ -216,6 +216,32 @@ class GeminiResilienceIT extends AbstractIntegrationTest {
 	}
 
 	@Test
+	void shouldStreamFromFallbackModelWhenPrimaryIsOverloaded() throws Exception {
+		GEMINI.stubFor(post(urlPathMatching(STREAM_PATH)).willReturn(error(503)));
+		GEMINI.stubFor(post(urlPathMatching(".*/models/gemini-2\\.5-flash-lite:streamGenerateContent"))
+				.willReturn(aResponse().withHeader("Content-Type", "text/event-stream")
+						.withBody("data: " + response("Resposta do reserva", "gemini-2.5-flash-lite") + "\n\n")));
+
+		MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/v1/chat/stream")
+						.header(ApiKeyFilter.HEADER, client.apiKey())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"message": "Oi"}
+								"""))
+				.andExpect(request().asyncStarted())
+				.andReturn();
+
+		String body = mockMvc.perform(asyncDispatch(result))
+				.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+
+		assertThat(body)
+				.contains("data:{\"content\":\"Resposta do reserva\"}")
+				.contains("event:done")
+				.contains("gemini-2.5-flash-lite")
+				.doesNotContain("event:error");
+	}
+
+	@Test
 	void shouldSendTaskTypeAndDimensionsWhenGeneratingEmbeddings() throws Exception {
 		GEMINI.stubFor(post(urlPathMatching(EMBEDDING_PATH)).willReturn(okJson(embeddingResponse(2))));
 

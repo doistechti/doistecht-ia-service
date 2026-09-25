@@ -122,4 +122,4 @@ Para evidenciar o uso por "diversos projetos", será criado um projeto cliente s
 
 - [x] Ferramenta de build: **Maven**.
 - [x] Biblioteca de integração com IA: **Spring AI** (integração nativa com Spring Boot, observabilidade via Micrometer e Advisors para cache/uso/RAG). A biblioteca fica isolada atrás da interface `AiProvider`.
-- [ ] Modelo Gemini padrão e modelo de fallback.
+- [x] Modelo Gemini padrão e modelo de fallback: `gemini-3.8-flash` e `gemini-3.5-flash-lite` (definidos na fase 6, após o teste com a API real).

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 class ModelFallbackExecutorTest {
 
@@ -146,6 +147,51 @@ class ModelFallbackExecutorTest {
 		}))).isInstanceOf(AiProviderException.class);
 
 		assertThat(calls).containsOnly(PRIMARY).hasSize(3);
+	}
+
+	@Test
+	void shouldStreamFromFallbackWhenPrimaryFailsBeforeFirstChunk() {
+		List<String> chunks = executor(FALLBACK).stream(model -> {
+			calls.add(model);
+			return model.equals(PRIMARY)
+					? Flux.<String>error(new TransientFailure())
+					: Flux.just("a", "b");
+		}).collectList().block();
+
+		assertThat(chunks).containsExactly("a", "b");
+		assertThat(calls).containsExactly(PRIMARY, FALLBACK);
+	}
+
+	@Test
+	void shouldNotSwitchModelAfterFirstChunk() {
+		Flux<String> stream = executor(FALLBACK).stream(model -> {
+			calls.add(model);
+			return Flux.concat(Flux.just("parte"), Flux.error(new TransientFailure()));
+		});
+
+		assertThatThrownBy(() -> stream.collectList().block()).isInstanceOf(TransientFailure.class);
+		assertThat(calls).containsExactly(PRIMARY);
+	}
+
+	@Test
+	void shouldStartStreamWithFallbackWhenPrimaryCircuitIsOpen() {
+		ModelFallbackExecutor executor = executor(FALLBACK);
+		Function<String, String> primaryDown = model -> {
+			if (model.equals(PRIMARY)) {
+				throw new TransientFailure();
+			}
+			return "ok";
+		};
+		executor.execute(record(primaryDown));
+		executor.execute(record(primaryDown));
+		calls.clear();
+
+		executor.stream(model -> {
+			calls.add(model);
+			return Flux.just("ok");
+		}).blockLast();
+
+		assertThat(calls).containsExactly(FALLBACK);
 	}
 
 	private <T> Function<String, T> record(Function<String, T> call) {

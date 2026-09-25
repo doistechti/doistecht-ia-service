@@ -34,8 +34,8 @@ public class StructuredController {
 		String systemPrompt = StringUtils.hasText(request.systemPrompt())
 				? request.systemPrompt()
 				: DEFAULT_SYSTEM_PROMPT;
-		var result = structuredOutputService.generate(new ChatCommand(systemPrompt, request.input()),
-				request.schema());
+		var command = new ChatCommand(systemPrompt, request.input()).withProvider(request.provider());
+		var result = structuredOutputService.generate(command, request.schema());
 		return StructuredResponse.from(result);
 	}
 

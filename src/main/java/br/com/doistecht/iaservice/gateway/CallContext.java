@@ -15,14 +15,16 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  *
  * @param clientId    cliente autenticado, ou {@code null} fora de uma requisição de cliente
  * @param clientName  nome do cliente, usado nas métricas
+ * @param clientDefaultProvider provedor padrão do cliente, ou {@code null}
  * @param endpoint    rota chamada
  * @param bypassCache {@code true} quando o cliente enviou {@code Cache-Control: no-cache}
  */
-record CallContext(Long clientId, String clientName, String endpoint, boolean bypassCache) {
+record CallContext(Long clientId, String clientName, String clientDefaultProvider, String endpoint,
+		boolean bypassCache) {
 
 	private static final int MAX_ENDPOINT_LENGTH = 200;
 
-	static final CallContext NONE = new CallContext(null, null, "internal", false);
+	static final CallContext NONE = new CallContext(null, null, null, "internal", false);
 
 	static CallContext current() {
 		CallContext attributed = UsageAttribution.current();
@@ -40,7 +42,10 @@ record CallContext(Long clientId, String clientName, String endpoint, boolean by
 		if (endpoint.length() > MAX_ENDPOINT_LENGTH) {
 			endpoint = endpoint.substring(0, MAX_ENDPOINT_LENGTH);
 		}
-		return new CallContext(client == null ? null : client.id(), client == null ? null : client.name(), endpoint,
+		if (client == null) {
+			return new CallContext(null, null, null, endpoint, isNoCache(request.getHeader("Cache-Control")));
+		}
+		return new CallContext(client.id(), client.name(), client.defaultProvider(), endpoint,
 				isNoCache(request.getHeader("Cache-Control")));
 	}
 

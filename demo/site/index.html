@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>doistecht AI Gateway · Demo</title>
+  <meta name="description" content="Projeto cliente de demonstração do doistecht-ia-service">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <div>
+        <h1>doistecht AI Gateway</h1>
+        <p class="subtitle">Projeto cliente de demonstração · <a href="admin.html">cadastrar cliente</a></p>
+      </div>
+    </div>
+
+    <form id="key-form" class="key-form" autocomplete="off">
+      <label for="api-key">API key do cliente</label>
+      <div class="inline">
+        <input id="api-key" type="password" placeholder="dtia_..." spellcheck="false">
+        <button type="submit">Conectar</button>
+      </div>
+    </form>
+  </header>
+
+  <section class="providers" aria-label="Provedores de IA">
+    <label for="provider">Provedor</label>
+    <select id="provider">
+      <option value="">Automático (padrão do gateway)</option>
+    </select>
+    <ul id="provider-status" class="provider-status"></ul>
+    <p id="limits" class="limits" aria-live="polite"></p>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Funcionalidades">
+    <button role="tab" aria-selected="true" aria-controls="tab-chat" id="t-chat">Chat</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-tasks" id="t-tasks">Tarefas</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-structured" id="t-structured">JSON estruturado</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-rag" id="t-rag">Documentos (RAG)</button>
+    <button role="tab" aria-selected="false" aria-controls="tab-usage" id="t-usage">Uso</button>
+  </nav>
+
+  <div id="alert" class="alert" role="alert" hidden></div>
+
+  <main>
+    <!-- Chat com streaming -->
+    <section id="tab-chat" role="tabpanel" aria-labelledby="t-chat" class="panel">
+      <div id="messages" class="messages" aria-live="polite">
+        <p class="empty">Converse com o modelo. A resposta chega em partes (streaming), e o histórico da conversa é enviado a cada mensagem.</p>
+      </div>
+      <form id="chat-form" class="composer">
+        <label class="sr-only" for="chat-input">Mensagem</label>
+        <textarea id="chat-input" rows="2" placeholder="Escreva uma mensagem…" required></textarea>
+        <div class="composer-actions">
+          <button type="button" id="chat-clear" class="secondary">Nova conversa</button>
+          <button type="submit" id="chat-send">Enviar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Tarefas prontas -->
+    <section id="tab-tasks" role="tabpanel" aria-labelledby="t-tasks" class="panel" hidden>
+      <form id="task-form" class="stack">
+        <label for="task-template">Template</label>
+        <select id="task-template"></select>
+        <p id="task-description" class="hint"></p>
+        <div id="task-fields" class="stack"></div>
+        <button type="submit">Executar tarefa</button>
+      </form>
+      <div id="task-result" class="result" hidden></div>
+    </section>
+
+    <!-- Output estruturado -->
+    <section id="tab-structured" role="tabpanel" aria-labelledby="t-structured" class="panel" hidden>
+      <form id="structured-form" class="stack">
+        <label for="structured-input">Texto de entrada</label>
+        <textarea id="structured-input" rows="3" required>Maria Oliveira, 41 anos, engenheira de dados, mora em Belo Horizonte e fala inglês e espanhol.</textarea>
+        <label for="structured-schema">JSON Schema da resposta</label>
+        <textarea id="structured-schema" rows="10" class="mono" required></textarea>
+        <button type="submit">Extrair dados</button>
+      </form>
+      <div id="structured-result" class="result" hidden></div>
+    </section>
+
+    <!-- Documentos e RAG -->
+    <section id="tab-rag" role="tabpanel" aria-labelledby="t-rag" class="panel" hidden>
+      <form id="upload-form" class="upload">
+        <label for="upload-file">Enviar documento (PDF, TXT ou MD, até 10 MB)</label>
+        <div class="inline">
+          <input id="upload-file" type="file" accept=".pdf,.txt,.md" required>
+          <button type="submit">Enviar</button>
+        </div>
+      </form>
+
+      <table class="documents">
+        <caption class="sr-only">Documentos do cliente</caption>
+        <thead>
+          <tr><th scope="col">Arquivo</th><th scope="col">Situação</th><th scope="col">Trechos</th><th scope="col"><span class="sr-only">Ações</span></th></tr>
+        </thead>
+        <tbody id="documents"></tbody>
+      </table>
+
+      <form id="rag-form" class="stack">
+        <label for="rag-question">Pergunta sobre os documentos</label>
+        <div class="inline">
+          <input id="rag-question" type="text" placeholder="Ex.: Qual o prazo de reembolso?" required>
+          <button type="submit">Perguntar</button>
+        </div>
+      </form>
+      <div id="rag-result" class="result" hidden></div>
+    </section>
+
+    <!-- Uso -->
+    <section id="tab-usage" role="tabpanel" aria-labelledby="t-usage" class="panel" hidden>
+      <div class="usage-header">
+        <p class="hint">Consumo deste cliente nos últimos 30 dias.</p>
+        <button type="button" id="usage-refresh" class="secondary">Atualizar</button>
+      </div>
+      <div id="usage" class="tiles"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    A API key fica apenas nesta aba do navegador (sessionStorage) e é enviada no header <code>X-API-Key</code>.
+    Página de demonstração: em produção, a chave deve ficar no servidor do projeto cliente.
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

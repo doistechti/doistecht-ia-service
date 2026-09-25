@@ -7,6 +7,7 @@ import br.com.doistecht.iaservice.provider.AiProvider;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatResult;
 import br.com.doistecht.iaservice.provider.EmbeddingPurpose;
+import br.com.doistecht.iaservice.provider.EmbeddingResult;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -51,19 +52,23 @@ public class RagService {
 	/**
 	 * @param topK        quantidade de trechos usados como contexto; nulo usa o padrão
 	 * @param documentIds restringe a busca a estes documentos; vazio ou nulo busca em todos
+	 * @param provider    provedor que gera a resposta; {@code null} deixa o gateway escolher
 	 */
-	public RagAnswer ask(Long clientId, String question, Integer topK, List<Long> documentIds) {
+	public RagAnswer ask(Long clientId, String question, Integer topK, List<Long> documentIds, String provider) {
 		int limit = Math.min(topK == null ? settings.defaultTopK() : topK, settings.maxTopK());
-		float[] queryVector = aiProvider.embed(List.of(question), EmbeddingPurpose.QUERY).vectors().getFirst();
+		// A pergunta usa o mesmo provedor de embeddings dos documentos (null = o fixo do RAG)
+		EmbeddingResult query = aiProvider.embed(List.of(question), EmbeddingPurpose.QUERY, null);
 
-		List<ChunkMatch> matches = chunkStore.search(clientId, queryVector, limit, documentIds).stream()
+		List<ChunkMatch> matches = chunkStore.search(clientId, query.vectors().getFirst(), query.model(), limit,
+						documentIds).stream()
 				.filter(match -> match.score() >= settings.minScore())
 				.toList();
 		if (matches.isEmpty()) {
 			return RagAnswer.notFound(NOT_FOUND_ANSWER);
 		}
 
-		ChatResult result = aiProvider.chat(new ChatCommand(SYSTEM_PROMPT, buildPrompt(question, matches)));
+		ChatResult result = aiProvider.chat(
+				new ChatCommand(SYSTEM_PROMPT, buildPrompt(question, matches)).withProvider(provider));
 		return new RagAnswer(result.content(), true, toSources(matches), result.model(), result.provider(),
 				result.fallback());
 	}

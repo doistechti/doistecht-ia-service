@@ -3,6 +3,7 @@ package br.com.doistecht.iaservice.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -21,7 +22,12 @@ public record ClientCreateRequest(
 		@Schema(description = "Requisições por dia (padrão 200)", example = "200")
 		@Positive
 		@Max(1_000_000)
-		Integer dailyQuota) {
+		Integer dailyQuota,
+
+		@Schema(description = "Provedor de IA padrão do cliente (opcional); sem ele, usa o padrão global",
+				example = "ollama")
+		@Pattern(regexp = "[a-z0-9-]{1,30}", message = "nome de provedor inválido")
+		String defaultProvider) {
 
 	// Padrões próximos aos limites do plano gratuito do Gemini
 	public static final int DEFAULT_RATE_LIMIT_PER_MINUTE = 10;

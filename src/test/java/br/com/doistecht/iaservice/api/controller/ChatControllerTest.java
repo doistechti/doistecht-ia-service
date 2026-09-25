@@ -53,6 +53,8 @@ class ChatControllerTest extends ApiControllerTestSupport {
 								{"message": "Oi", "systemPrompt": "Seja breve."}
 								"""))
 				.andExpect(status().isOk())
+				// charset explícito: o PowerShell 5.1 lê como Latin-1 quando ele não vem no header
+				.andExpect(header().string("Content-Type", "application/json;charset=UTF-8"))
 				.andExpect(jsonPath("$.content").value("Olá!"))
 				.andExpect(jsonPath("$.model").value("gemini-2.5-flash"))
 				.andExpect(jsonPath("$.provider").value("gemini"));
@@ -218,6 +220,7 @@ class ChatControllerTest extends ApiControllerTestSupport {
 								"""))
 				.andExpect(status().isBadRequest())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+				.andExpect(header().string("Content-Type", "application/problem+json;charset=UTF-8"))
 				.andExpect(jsonPath("$.errors.message").exists());
 	}
 

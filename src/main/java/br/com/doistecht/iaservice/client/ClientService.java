@@ -1,5 +1,7 @@
 package br.com.doistecht.iaservice.client;
 
+import br.com.doistecht.iaservice.gateway.ProviderRouter;
+import br.com.doistecht.iaservice.gateway.UnknownProviderException;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,27 +14,47 @@ public class ClientService {
 
 	private final ClientAuthenticator authenticator;
 
-	public ClientService(ClientRepository repository, ClientAuthenticator authenticator) {
+	private final ProviderRouter providerRouter;
+
+	public ClientService(ClientRepository repository, ClientAuthenticator authenticator,
+			ProviderRouter providerRouter) {
 		this.repository = repository;
 		this.authenticator = authenticator;
+		this.providerRouter = providerRouter;
 	}
 
 	/** Cliente recém-criado ou com chave rotacionada, junto da chave em texto puro. */
 	public record ClientWithKey(Client client, ApiKey apiKey) {
 	}
 
-	/** Alterações parciais: campos nulos são mantidos. */
-	public record ClientChanges(Integer rateLimitPerMinute, Integer dailyQuota, Boolean active) {
+	/**
+	 * Alterações parciais: campos nulos são mantidos. Em {@code defaultProvider}, texto vazio
+	 * remove o provedor padrão do cliente (volta a usar o padrão global).
+	 */
+	public record ClientChanges(Integer rateLimitPerMinute, Integer dailyQuota, Boolean active,
+			String defaultProvider) {
+
+		public ClientChanges(Integer rateLimitPerMinute, Integer dailyQuota, Boolean active) {
+			this(rateLimitPerMinute, dailyQuota, active, null);
+		}
+
 	}
 
 	@Transactional
 	public ClientWithKey create(String name, int rateLimitPerMinute, int dailyQuota) {
+		return create(name, rateLimitPerMinute, dailyQuota, null);
+	}
+
+	@Transactional
+	public ClientWithKey create(String name, int rateLimitPerMinute, int dailyQuota, String defaultProvider) {
 		if (repository.existsByName(name)) {
 			throw new ClientAlreadyExistsException(name);
 		}
+		requireAvailable(defaultProvider);
 		ApiKey apiKey = ApiKey.generate();
-		Client client = repository.save(new Client(name, apiKey, rateLimitPerMinute, dailyQuota));
-		return new ClientWithKey(client, apiKey);
+		Client client = new Client(name, apiKey, rateLimitPerMinute, dailyQuota);
+		client.setDefaultProvider(defaultProvider);
+		return new ClientWithKey(repository.save(client), apiKey);
 	}
 
 	public List<Client> list() {
@@ -66,9 +88,21 @@ public class ClientService {
 		if (changes.active() != null) {
 			client.setActive(changes.active());
 		}
+		if (changes.defaultProvider() != null) {
+			String provider = changes.defaultProvider().isBlank() ? null : changes.defaultProvider();
+			requireAvailable(provider);
+			client.setDefaultProvider(provider);
+		}
 		repository.flush();
 		authenticator.invalidateAll();
 		return client;
+	}
+
+	private void requireAvailable(String provider) {
+		if (provider != null && !providerRouter.isAvailable(provider)) {
+			throw new UnknownProviderException(provider,
+					providerRouter.all().stream().map(p -> p.name()).toList());
+		}
 	}
 
 }

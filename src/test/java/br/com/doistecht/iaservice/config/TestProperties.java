@@ -17,12 +17,13 @@ public final class TestProperties {
 
 	public static IaServiceProperties withPricing(Map<String, ModelPrice> pricing) {
 		return new IaServiceProperties("admin", new IaServiceProperties.Auth(Duration.ofSeconds(30)),
-				new IaServiceProperties.Cache(true, Duration.ofHours(1)), pricing, rag(1000, 200));
+				new IaServiceProperties.Cache(true, Duration.ofHours(1)), pricing, rag(1000, 200),
+				new IaServiceProperties.Providers("gemini", null));
 	}
 
 	public static IaServiceProperties.Rag rag(int chunkSize, int chunkOverlap) {
 		return new IaServiceProperties.Rag(chunkSize, chunkOverlap, DataSize.ofMegabytes(10), 500, 50, Duration.ZERO, 4,
-				20, 0.5, 768);
+				20, 0.5, 768, "gemini");
 	}
 
 }

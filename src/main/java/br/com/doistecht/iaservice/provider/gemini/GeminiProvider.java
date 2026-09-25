@@ -1,7 +1,7 @@
 package br.com.doistecht.iaservice.provider.gemini;
 
 import br.com.doistecht.iaservice.config.IaServiceProperties;
-import br.com.doistecht.iaservice.provider.AiProvider;
+import br.com.doistecht.iaservice.provider.ModelProvider;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.provider.ChatCommand;
 import br.com.doistecht.iaservice.provider.ChatMessage;
@@ -9,6 +9,8 @@ import br.com.doistecht.iaservice.provider.ChatResult;
 import br.com.doistecht.iaservice.provider.EmbeddingPurpose;
 import br.com.doistecht.iaservice.provider.EmbeddingResult;
 import br.com.doistecht.iaservice.provider.ModelFallbackExecutor;
+import br.com.doistecht.iaservice.provider.ProviderHealth;
+import br.com.doistecht.iaservice.provider.ProviderInfo;
 import br.com.doistecht.iaservice.provider.StreamChunk;
 import br.com.doistecht.iaservice.provider.TokenUsage;
 import com.google.genai.Client;
@@ -38,15 +40,15 @@ import reactor.core.publisher.Flux;
  * Provedor Gemini (Google AI Studio) implementado com o Spring AI.
  * <p>
  * Chamadas síncronas passam pelo {@link ModelFallbackExecutor} (retry, circuit breaker e
- * modelo reserva). O streaming usa só o modelo principal, sem novas tentativas: depois que
- * o primeiro trecho chega ao cliente, não há como recomeçar a resposta de forma transparente.
+ * modelo reserva). No streaming, o modelo reserva só entra se a falha acontecer antes do
+ * primeiro trecho: depois disso, não há como recomeçar a resposta de forma transparente.
  * <p>
  * Embeddings usam o SDK do Google diretamente, e não o Spring AI: a versão 2.0.1 do Spring AI
  * aceita a opção {@code task-type} mas não a envia ao Gemini, e o tipo de tarefa
  * ({@code RETRIEVAL_DOCUMENT} / {@code RETRIEVAL_QUERY}) melhora a qualidade da busca.
  */
 @Component
-public class GeminiProvider implements AiProvider {
+public class GeminiProvider implements ModelProvider {
 
 	private static final Logger log = LoggerFactory.getLogger(GeminiProvider.class);
 
@@ -63,6 +65,8 @@ public class GeminiProvider implements AiProvider {
 
 	private final int embeddingDimensions;
 
+	private final String embeddingModel;
+
 	public GeminiProvider(GoogleGenAiChatModel chatModel, Client genAiClient, GeminiProperties properties,
 			IaServiceProperties serviceProperties,
 			@Value("${spring.ai.google.genai.chat.model}") String primaryModel,
@@ -74,6 +78,7 @@ public class GeminiProvider implements AiProvider {
 		this.embeddingExecutor = new ModelFallbackExecutor(NAME, properties.embeddingModel(), null,
 				GeminiErrors::isTransient, circuitBreakers, retries);
 		this.embeddingDimensions = serviceProperties.rag().embeddingDimensions();
+		this.embeddingModel = properties.embeddingModel();
 	}
 
 	@Override
@@ -95,10 +100,10 @@ public class GeminiProvider implements AiProvider {
 
 	@Override
 	public Flux<StreamChunk> chatStream(ChatCommand command) {
-		return prompt(command)
-				.options(GoogleGenAiChatOptions.builder().model(executor.primaryModel()))
-				.stream()
-				.chatResponse()
+		return executor.stream(model -> prompt(command)
+						.options(GoogleGenAiChatOptions.builder().model(model))
+						.stream()
+						.chatResponse())
 				.map(GeminiProvider::toChunk)
 				.onErrorMap(ex -> !(ex instanceof AiProviderException), ex -> {
 					log.error("Falha no streaming do Gemini", ex);
@@ -123,6 +128,22 @@ public class GeminiProvider implements AiProvider {
 			}
 			return new EmbeddingResult(vectors, model, null);
 		}).value();
+	}
+
+	@Override
+	public ProviderInfo info() {
+		return new ProviderInfo(executor.primaryModel(), executor.fallbackModel(), embeddingModel);
+	}
+
+	// Sem chamada de teste: consultar a API gastaria cota do plano gratuito a cada health check
+	@Override
+	public ProviderHealth health() {
+		ProviderHealth chat = executor.health();
+		ProviderHealth embeddings = embeddingExecutor.health();
+		if (chat.status() == ProviderHealth.Status.UP && !embeddings.isAvailable()) {
+			return ProviderHealth.degraded("Chat disponível; embeddings indisponíveis (" + embeddings.detail() + ")");
+		}
+		return chat;
 	}
 
 	private ChatResult execute(Function<String, ChatResult> call) {

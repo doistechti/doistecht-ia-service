@@ -37,7 +37,8 @@ public class TaskController {
 			@Valid @RequestBody(required = false) TaskRequest request,
 			@Parameter(hidden = true) @RequestAttribute(AuthenticatedClient.REQUEST_ATTRIBUTE) AuthenticatedClient client) {
 		var variables = request == null ? Map.<String, String>of() : request.variablesOrEmpty();
-		return TaskResponse.from(taskService.execute(template, version, client.id(), variables));
+		String provider = request == null ? null : request.provider();
+		return TaskResponse.from(taskService.execute(template, version, client.id(), variables, provider));
 	}
 
 }

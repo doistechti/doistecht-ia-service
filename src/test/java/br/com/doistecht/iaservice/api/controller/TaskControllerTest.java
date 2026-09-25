@@ -32,7 +32,7 @@ class TaskControllerTest extends ApiControllerTestSupport {
 
 	@Test
 	void shouldExecuteTextTask() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap(), isNull()))
 				.willReturn(new TaskResult("resumir-texto", 1, "Resumo", null, "gemini-2.5-flash", "gemini"));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto")
@@ -49,7 +49,7 @@ class TaskControllerTest extends ApiControllerTestSupport {
 
 	@Test
 	void shouldPassRequestedVersion() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), eq(3), eq(7L), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), eq(3), eq(7L), anyMap(), isNull()))
 				.willReturn(new TaskResult("resumir-texto", 3, "Resumo", null, "m", "gemini"));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto?version=3")
@@ -62,7 +62,7 @@ class TaskControllerTest extends ApiControllerTestSupport {
 
 	@Test
 	void shouldReturnNotFoundForUnknownTemplate() throws Exception {
-		given(taskService.execute(eq("nao-existe"), isNull(), eq(7L), anyMap()))
+		given(taskService.execute(eq("nao-existe"), isNull(), eq(7L), anyMap(), isNull()))
 				.willThrow(new TemplateNotFoundException("nao-existe", null));
 
 		mockMvc.perform(post("/v1/tasks/nao-existe")
@@ -74,7 +74,7 @@ class TaskControllerTest extends ApiControllerTestSupport {
 
 	@Test
 	void shouldReturnBadRequestWithMissingVariables() throws Exception {
-		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap()))
+		given(taskService.execute(eq("resumir-texto"), isNull(), eq(7L), anyMap(), isNull()))
 				.willThrow(new MissingVariablesException(List.of("texto")));
 
 		mockMvc.perform(post("/v1/tasks/resumir-texto")

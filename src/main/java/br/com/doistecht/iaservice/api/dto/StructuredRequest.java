@@ -3,6 +3,7 @@ package br.com.doistecht.iaservice.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import tools.jackson.databind.JsonNode;
 
@@ -22,5 +23,10 @@ public record StructuredRequest(
 				{"type": "object", "properties": {"nome": {"type": "string"}, "idade": {"type": "integer"},
 				"cidade": {"type": "string"}}, "required": ["nome", "idade", "cidade"]}""")
 		@NotNull
-		JsonNode schema) {
+		JsonNode schema,
+
+		@Schema(description = "Provedor de IA (opcional): gemini ou ollama. Sem ele, usa o padrão do cliente ou o global, "
+				+ "com troca automática para o provedor reserva se o escolhido estiver fora do ar.", example = "gemini")
+		@Pattern(regexp = "[a-z0-9-]{1,30}", message = "nome de provedor inválido")
+		String provider) {
 }

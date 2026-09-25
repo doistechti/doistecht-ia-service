@@ -19,7 +19,11 @@ public record EmbeddingRequest(
 		@Schema(description = "document (padrão) para textos que serão buscados; query para perguntas",
 				allowableValues = { "document", "query" }, example = "document")
 		@Pattern(regexp = "document|query", message = "deve ser 'document' ou 'query'")
-		String purpose) {
+		String purpose,
+
+		@Schema(description = "Provedor de IA (opcional); sem ele, usa o provedor de embeddings do RAG", example = "gemini")
+		@Pattern(regexp = "[a-z0-9-]{1,30}", message = "nome de provedor inválido")
+		String provider) {
 
 	public EmbeddingPurpose purposeOrDefault() {
 		return purpose == null ? EmbeddingPurpose.DOCUMENT : EmbeddingPurpose.valueOf(purpose.toUpperCase(Locale.ROOT));

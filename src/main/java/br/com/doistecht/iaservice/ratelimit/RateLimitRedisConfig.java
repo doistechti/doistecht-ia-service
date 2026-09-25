@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * ficaria preso a uma conexão fechada e passaria a liberar tudo. Com um cliente próprio,
  * encerrado só no fim da aplicação, a reconexão automática do Lettuce cuida de quedas do Redis.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class RateLimitRedisConfig {
 
 	private static final Duration TIMEOUT = Duration.ofSeconds(2);

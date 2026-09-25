@@ -35,6 +35,10 @@ public class Client {
 	@Column(nullable = false)
 	private int dailyQuota;
 
+	/** Provedor de IA padrão do cliente; {@code null} usa o padrão global. */
+	@Column(length = 30)
+	private String defaultProvider;
+
 	@Column(nullable = false)
 	private boolean active = true;
 
@@ -87,6 +91,14 @@ public class Client {
 
 	public void setDailyQuota(int dailyQuota) {
 		this.dailyQuota = dailyQuota;
+	}
+
+	public String getDefaultProvider() {
+		return defaultProvider;
+	}
+
+	public void setDefaultProvider(String defaultProvider) {
+		this.defaultProvider = defaultProvider;
 	}
 
 	public boolean isActive() {

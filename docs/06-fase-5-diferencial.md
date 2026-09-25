@@ -66,7 +66,7 @@ Adicionar as funcionalidades que destacam o projeto no portfólio: busca semânt
 
 - **PDFs escaneados** (só imagens) não são suportados: precisariam de OCR. O documento fica `FAILED` com a explicação.
 - **Primeiras chamadas de um cliente novo no Grafana:** um contador que já nasce com valor (ex.: 6 chamadas antes da primeira coleta) não aparece no `rate()` do Prometheus, que precisa de uma medição anterior para comparar. Com tráfego contínuo o efeito desaparece.
-- **Similaridade mínima** (`RAG_MIN_SCORE`, padrão 0,5) precisa ser calibrada com documentos reais: valores altos demais escondem trechos úteis; baixos demais trazem contexto irrelevante.
+- **Similaridade mínima** (`RAG_MIN_SCORE`): calibrada na fase 6 com a API real em 0,6 (o padrão era 0,5). Valores altos demais escondem trechos úteis; baixos demais trazem contexto irrelevante.
 - As cores das séries por cliente seguem a paleta padrão do Grafana, atribuída pela ordem das séries; os clientes são dinâmicos, então não há cor fixa por cliente.
 
 ## Contrato da API
@@ -129,7 +129,7 @@ CREATE INDEX idx_document_chunk_embedding ON document_chunk USING hnsw (embeddin
 ## Critérios de aceite
 
 - [x] Upload de um PDF deixa o documento com status `READY`.
-- [x] Pergunta sobre o conteúdo retorna resposta com as fontes (validado com embeddings simulados; pendente validar com o Gemini real).
+- [x] Pergunta sobre o conteúdo retorna resposta com as fontes (validado com o Gemini real na fase 6).
 - [x] Um cliente nunca recebe trechos de documentos de outro cliente (teste automatizado).
 - [x] Pergunta fora do conteúdo retorna que não encontrou a informação.
 - [x] `docker compose up` sobe o Grafana com o dashboard já configurado.
@@ -139,7 +139,7 @@ CREATE INDEX idx_document_chunk_embedding ON document_chunk USING hnsw (embeddin
 
 Implementada. 144 testes automatizados passando com `mvn verify` (96 unitários e 48 de integração), cobertura de ~93% das linhas, incluindo RAG com PostgreSQL + pgvector reais, isolamento entre clientes, e WireMock conferindo a requisição de embeddings enviada ao Gemini.
 Validado com `docker compose up`: migration do pgvector (extensão 0.8.6), documento processado até `FAILED` com a chave falsa (mensagem correta para erro permanente), Prometheus coletando as métricas e Grafana com datasource e dashboard provisionados, conferido por imagem renderizada.
-**Pendente:** validar RAG e embeddings com chave real do Gemini e calibrar `RAG_MIN_SCORE`.
+**Validado com a API real do Gemini na fase 6** (25/09/2026), com os modelos atualizados para `gemini-3.8-flash` e `gemini-3.5-flash-lite` — veja a [fase 6](07-fase-6-extra.md#validação-com-a-api-real-do-gemini).
 
 ## Fora desta fase
 

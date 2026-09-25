@@ -17,7 +17,7 @@ public final class UsageAttribution {
 	 */
 	public static void runAs(Long clientId, String clientName, String endpoint, Runnable task) {
 		CallContext previous = CURRENT.get();
-		CURRENT.set(new CallContext(clientId, clientName, endpoint, true));
+		CURRENT.set(new CallContext(clientId, clientName, null, endpoint, true));
 		try {
 			task.run();
 		}

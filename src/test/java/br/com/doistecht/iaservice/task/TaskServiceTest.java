@@ -45,7 +45,7 @@ class TaskServiceTest {
 						null));
 		given(aiProvider.chat(any(ChatCommand.class))).willReturn(new ChatResult("Resumo", "m", "gemini"));
 
-		TaskResult result = taskService.execute("resumir-texto", null, 7L, Map.of("linhas", "2", "texto", "Abc"));
+		TaskResult result = taskService.execute("resumir-texto", null, 7L, Map.of("linhas", "2", "texto", "Abc"), null);
 
 		ArgumentCaptor<ChatCommand> captor = ArgumentCaptor.forClass(ChatCommand.class);
 		verify(aiProvider).chat(captor.capture());
@@ -65,7 +65,7 @@ class TaskServiceTest {
 		given(structuredOutputService.generate(any(ChatCommand.class), eq(mapper.readTree(schema))))
 				.willReturn(new StructuredResult(data, "m", "gemini"));
 
-		TaskResult result = taskService.execute("classificar-ticket", 1, 7L, Map.of("ticket", "Cobrança duplicada"));
+		TaskResult result = taskService.execute("classificar-ticket", 1, 7L, Map.of("ticket", "Cobrança duplicada"), null);
 
 		assertThat(result.data()).isEqualTo(data);
 		assertThat(result.content()).isNull();
@@ -77,7 +77,7 @@ class TaskServiceTest {
 		given(templateService.resolve("resumir-texto", null, 7L)).willReturn(
 				new PromptTemplate("resumir-texto", 1, "Sistema {tom}", "Resuma: {texto}", null));
 
-		assertThatThrownBy(() -> taskService.execute("resumir-texto", null, 7L, Map.of()))
+		assertThatThrownBy(() -> taskService.execute("resumir-texto", null, 7L, Map.of(), null))
 				.isInstanceOf(MissingVariablesException.class)
 				.extracting(ex -> ((MissingVariablesException) ex).getMissing())
 				.asList()

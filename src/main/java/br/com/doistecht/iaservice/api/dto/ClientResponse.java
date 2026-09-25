@@ -11,12 +11,15 @@ public record ClientResponse(
 		String apiKeyPrefix,
 		int rateLimitPerMinute,
 		int dailyQuota,
+		@Schema(description = "Provedor de IA padrão do cliente; nulo usa o padrão global")
+		String defaultProvider,
 		boolean active,
 		Instant createdAt) {
 
 	public static ClientResponse from(Client client) {
 		return new ClientResponse(client.getId(), client.getName(), client.getApiKeyPrefix(),
-				client.getRateLimitPerMinute(), client.getDailyQuota(), client.isActive(), client.getCreatedAt());
+				client.getRateLimitPerMinute(), client.getDailyQuota(), client.getDefaultProvider(), client.isActive(),
+				client.getCreatedAt());
 	}
 
 }

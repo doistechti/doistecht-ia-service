@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
  * que falham com 408/429/5xx. Aqui o timeout é definido e o retry do SDK é desligado:
  * novas tentativas ficam só com o Resilience4j, em um único lugar configurável.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class GeminiClientConfig {
 
 	@Bean

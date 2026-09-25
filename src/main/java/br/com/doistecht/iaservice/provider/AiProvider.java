@@ -4,15 +4,14 @@ import java.util.List;
 import reactor.core.publisher.Flux;
 
 /**
- * Contrato comum a todos os provedores de IA.
+ * Porta de entrada para os modelos de IA, usada por controllers e serviços.
  * <p>
- * Nenhuma classe fora do pacote {@code provider} deve depender do Spring AI
- * ou de um provedor específico: elas conversam apenas com esta interface.
+ * É implementada pelo gateway, que escolhe o {@link ModelProvider} de cada chamada
+ * (pelo campo {@link ChatCommand#provider()}, pelo provedor padrão do cliente ou pelo
+ * padrão global) e adiciona cache, registro de uso, métricas e fallback entre provedores.
+ * Nenhuma classe fora do pacote {@code provider} conhece o Spring AI ou um provedor específico.
  */
 public interface AiProvider {
-
-	/** Identificador do provedor, ex.: {@code gemini}. */
-	String name();
 
 	ChatResult chat(ChatCommand command);
 
@@ -28,9 +27,11 @@ public interface AiProvider {
 	/**
 	 * Gera um embedding para cada texto, na mesma ordem.
 	 * <p>
-	 * Todos os vetores têm a mesma dimensão, fixa por configuração: ela precisa bater
-	 * com a coluna {@code vector} do banco, então não há fallback para outro modelo.
+	 * Não há fallback entre provedores: embeddings de modelos diferentes não são
+	 * comparáveis entre si, e os trechos já indexados ficariam inúteis.
+	 *
+	 * @param provider provedor a usar; {@code null} usa o provedor de embeddings do RAG
 	 */
-	EmbeddingResult embed(List<String> texts, EmbeddingPurpose purpose);
+	EmbeddingResult embed(List<String> texts, EmbeddingPurpose purpose, String provider);
 
 }

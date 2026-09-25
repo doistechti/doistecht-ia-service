@@ -108,7 +108,7 @@ resilience4j:
 Implementada. 111 testes automatizados (78 unitários e 33 de integração) passando com `mvn verify`, e cobertura de ~93% das linhas.
 Validado com `docker compose up`: o serviço sobe com a nova configuração, e um erro permanente do Gemini responde `502` na hora, sem retry nem fallback.
 CI confirmado verde no GitHub (build, testes e imagem Docker), inclusive após a atualização das actions para as versões mais recentes.
-**Pendente:** validar com chave real do Gemini.
+**Validado com a API real do Gemini na fase 6** (25/09/2026), com os modelos atualizados para `gemini-3.8-flash` e `gemini-3.5-flash-lite` — veja a [fase 6](07-fase-6-extra.md#validação-com-a-api-real-do-gemini).
 
 ## Fora desta fase
 

@@ -35,7 +35,7 @@ public class ClientAdminController {
 	@PostMapping
 	public ResponseEntity<ClientKeyResponse> create(@Valid @RequestBody ClientCreateRequest request) {
 		var created = clientService.create(request.name(), request.rateLimitPerMinuteOrDefault(),
-				request.dailyQuotaOrDefault());
+				request.dailyQuotaOrDefault(), request.defaultProvider());
 		var location = ServletUriComponentsBuilder.fromCurrentRequest()
 				.path("/{id}")
 				.buildAndExpand(created.client().getId())

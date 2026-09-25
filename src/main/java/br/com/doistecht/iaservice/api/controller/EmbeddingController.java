@@ -25,7 +25,8 @@ public class EmbeddingController {
 	@Operation(summary = "Gera um embedding para cada texto")
 	@PostMapping
 	public EmbeddingResponse embed(@Valid @RequestBody EmbeddingRequest request) {
-		return EmbeddingResponse.from(aiProvider.embed(request.texts(), request.purposeOrDefault()));
+		return EmbeddingResponse.from(
+				aiProvider.embed(request.texts(), request.purposeOrDefault(), request.provider()));
 	}
 
 }

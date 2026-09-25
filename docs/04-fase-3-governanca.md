@@ -112,7 +112,7 @@ ALTER TABLE prompt_template ADD COLUMN client_id BIGINT REFERENCES client (id);
 
 Implementada. 81 testes automatizados passando, incluindo integração com PostgreSQL e Redis reais (Testcontainers) para ciclo de vida de clientes, rate limit, cota, cache, registro de uso e templates por cliente.
 Validado com `docker compose up`: cadastro de cliente, `429` com `Retry-After` no limite por minuto, uso registrado e consultado, chaves no Redis e *fail open* com o Redis parado.
-**Pendente:** validar tokens e custo com chave real do Gemini.
+**Validado com a API real do Gemini na fase 6** (25/09/2026), com os modelos atualizados para `gemini-3.8-flash` e `gemini-3.5-flash-lite` — veja a [fase 6](07-fase-6-extra.md#validação-com-a-api-real-do-gemini).
 
 ## Fora desta fase
 

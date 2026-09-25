@@ -1,0 +1,143 @@
+### Coleção de requisições do doistecht-ia-service
+### Funciona no cliente HTTP do IntelliJ e no VS Code (extensão REST Client).
+### Preencha as variáveis abaixo antes de executar. Não commite chaves reais neste arquivo.
+
+@baseUrl = http://localhost:8080
+@adminKey = <IA_SERVICE_ADMIN_KEY>
+@clientKey = <API_KEY_DO_CLIENTE>
+
+### ---------- Admin ----------
+
+### Cadastrar um cliente (a API key completa só aparece nesta resposta)
+POST {{baseUrl}}/v1/admin/clients
+X-API-Key: {{adminKey}}
+Content-Type: application/json
+
+{"name": "meu-projeto", "rateLimitPerMinute": 10, "dailyQuota": 200}
+
+### Listar clientes
+GET {{baseUrl}}/v1/admin/clients
+X-API-Key: {{adminKey}}
+
+### Alterar limites e provedor padrão de um cliente
+PATCH {{baseUrl}}/v1/admin/clients/1
+X-API-Key: {{adminKey}}
+Content-Type: application/json
+
+{"rateLimitPerMinute": 20, "defaultProvider": "gemini"}
+
+### Rotacionar a API key de um cliente
+POST {{baseUrl}}/v1/admin/clients/1/rotate-key
+X-API-Key: {{adminKey}}
+
+### Listar templates de prompt
+GET {{baseUrl}}/v1/admin/templates
+X-API-Key: {{adminKey}}
+
+### Criar template (ou nova versão, se o nome já existir)
+POST {{baseUrl}}/v1/admin/templates
+X-API-Key: {{adminKey}}
+Content-Type: application/json
+
+{"name": "traduzir-texto", "systemPrompt": "Você é um tradutor profissional.", "userPromptTemplate": "Traduza para {idioma}:\n\n{texto}"}
+
+### Consumo de todos os clientes
+GET {{baseUrl}}/v1/admin/usage
+X-API-Key: {{adminKey}}
+
+### ---------- Cliente ----------
+
+### Provedores disponíveis
+GET {{baseUrl}}/v1/providers
+X-API-Key: {{clientKey}}
+
+### Chat
+POST {{baseUrl}}/v1/chat
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{"message": "Em uma frase, o que é um AI Gateway?", "systemPrompt": "Responda em português, de forma objetiva."}
+
+### Chat com histórico e provedor escolhido
+POST {{baseUrl}}/v1/chat
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{
+  "message": "E qual a população dela?",
+  "history": [
+    {"role": "user", "content": "Qual a capital do Brasil?"},
+    {"role": "assistant", "content": "Brasília."}
+  ],
+  "provider": "gemini"
+}
+
+### Chat com streaming (Server-Sent Events)
+POST {{baseUrl}}/v1/chat/stream
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+Accept: text/event-stream
+
+{"message": "Liste 3 vantagens de usar cache em chamadas a modelos de IA."}
+
+### Output estruturado
+POST {{baseUrl}}/v1/structured
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{
+  "input": "Maria Oliveira, 41 anos, engenheira de dados, mora em Belo Horizonte.",
+  "schema": {
+    "type": "object",
+    "properties": {"nome": {"type": "string"}, "idade": {"type": "integer"}, "cidade": {"type": "string"}},
+    "required": ["nome", "idade", "cidade"]
+  }
+}
+
+### Tarefa pronta: classificar ticket (resposta em JSON)
+POST {{baseUrl}}/v1/tasks/classificar-ticket
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{"variables": {"ticket": "Fui cobrado duas vezes pela assinatura deste mês."}}
+
+### Tarefa pronta: resumir texto
+POST {{baseUrl}}/v1/tasks/resumir-texto
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{"variables": {"texto": "O Spring AI é um projeto do ecossistema Spring que facilita a integração de modelos de IA em aplicações Java.", "linhas": "1"}}
+
+### Enviar documento para o RAG (processamento assíncrono)
+POST {{baseUrl}}/v1/documents
+X-API-Key: {{clientKey}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="politica.txt"
+Content-Type: text/plain
+
+O reembolso via Pix é feito em até 5 dias úteis após a aprovação da devolução.
+--boundary--
+
+### Listar documentos e status
+GET {{baseUrl}}/v1/documents
+X-API-Key: {{clientKey}}
+
+### Perguntar sobre os documentos
+POST {{baseUrl}}/v1/rag/ask
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{"question": "Em quanto tempo recebo o dinheiro de volta se paguei com Pix?"}
+
+### Embeddings
+POST {{baseUrl}}/v1/embeddings
+X-API-Key: {{clientKey}}
+Content-Type: application/json
+
+{"texts": ["primeiro texto", "segundo texto"], "purpose": "document"}
+
+### Consumo do cliente (últimos 30 dias)
+GET {{baseUrl}}/v1/usage
+X-API-Key: {{clientKey}}

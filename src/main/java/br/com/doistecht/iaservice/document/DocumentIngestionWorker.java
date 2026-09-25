@@ -94,7 +94,7 @@ class DocumentIngestionWorker {
 				pause(settings.embeddingBatchDelay());
 			}
 			List<String> batch = chunks.subList(start, Math.min(start + settings.embeddingBatchSize(), chunks.size()));
-			EmbeddingResult result = aiProvider.embed(batch, EmbeddingPurpose.DOCUMENT);
+			EmbeddingResult result = aiProvider.embed(batch, EmbeddingPurpose.DOCUMENT, null);
 			if (result.dimensions() != expectedDimensions) {
 				throw new IllegalStateException("Embedding com %d dimensões; o banco espera %d"
 						.formatted(result.dimensions(), expectedDimensions));

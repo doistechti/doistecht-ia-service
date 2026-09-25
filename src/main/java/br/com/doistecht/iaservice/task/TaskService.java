@@ -39,15 +39,18 @@ public class TaskService {
 
 	/**
 	 * @param clientId cliente que executa a tarefa; templates próprios dele têm prioridade sobre os globais
+	 * @param provider provedor de IA pedido, ou {@code null} para o gateway escolher
 	 */
-	public TaskResult execute(String name, Integer version, Long clientId, Map<String, String> variables) {
+	public TaskResult execute(String name, Integer version, Long clientId, Map<String, String> variables,
+			String provider) {
 		PromptTemplate template = templateService.resolve(name, version, clientId);
 
 		// Valida os dois textos juntos para devolver todas as variáveis ausentes de uma vez
 		renderer.requireVariables(variables, template.getSystemPrompt(), template.getUserPromptTemplate());
 		var command = new ChatCommand(
 				renderer.render(template.getSystemPrompt(), variables),
-				renderer.render(template.getUserPromptTemplate(), variables));
+				renderer.render(template.getUserPromptTemplate(), variables))
+				.withProvider(provider);
 
 		if (template.getOutputSchema() != null) {
 			StructuredResult result = structuredOutputService.generate(command,

@@ -4,6 +4,7 @@ import br.com.doistecht.iaservice.client.ClientAlreadyExistsException;
 import br.com.doistecht.iaservice.client.ClientNotFoundException;
 import br.com.doistecht.iaservice.document.DocumentNotFoundException;
 import br.com.doistecht.iaservice.document.InvalidDocumentException;
+import br.com.doistecht.iaservice.gateway.UnknownProviderException;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.ratelimit.RateLimitExceededException;
 import br.com.doistecht.iaservice.structured.InvalidSchemaException;
@@ -85,7 +86,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem;
 	}
 
-	@ExceptionHandler({ InvalidSchemaException.class, InvalidPeriodException.class, InvalidDocumentException.class })
+	@ExceptionHandler({ InvalidSchemaException.class, InvalidPeriodException.class, InvalidDocumentException.class,
+			UnknownProviderException.class })
 	ProblemDetail handleBadRequest(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}

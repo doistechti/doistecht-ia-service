@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -34,19 +35,19 @@ class RagServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		given(aiProvider.embed(anyList(), eq(EmbeddingPurpose.QUERY)))
+		given(aiProvider.embed(anyList(), eq(EmbeddingPurpose.QUERY), isNull()))
 				.willReturn(new EmbeddingResult(List.of(queryVector), "fake", null));
 	}
 
 	@Test
 	void shouldAnswerUsingRelevantChunksAsContext() {
-		given(chunkStore.search(eq(7L), eq(queryVector), eq(4), any())).willReturn(List.of(
+		given(chunkStore.search(eq(7L), eq(queryVector), eq("fake"), eq(4), any())).willReturn(List.of(
 				new ChunkMatch(12L, "politica.pdf", 3, "O reembolso é feito em até 7 dias úteis.", 0.82),
 				new ChunkMatch(12L, "politica.pdf", 5, "Texto pouco relacionado.", 0.31)));
 		given(aiProvider.chat(any(ChatCommand.class)))
 				.willReturn(new ChatResult("O prazo é de 7 dias úteis [1].", "gemini-2.5-flash", "gemini"));
 
-		RagAnswer answer = ragService.ask(7L, "Qual o prazo de reembolso?", null, null);
+		RagAnswer answer = ragService.ask(7L, "Qual o prazo de reembolso?", null, null, null);
 
 		assertThat(answer.found()).isTrue();
 		assertThat(answer.answer()).isEqualTo("O prazo é de 7 dias úteis [1].");
@@ -69,10 +70,10 @@ class RagServiceTest {
 
 	@Test
 	void shouldNotCallChatWhenNothingRelevantIsFound() {
-		given(chunkStore.search(eq(7L), eq(queryVector), eq(4), any()))
+		given(chunkStore.search(eq(7L), eq(queryVector), eq("fake"), eq(4), any()))
 				.willReturn(List.of(new ChunkMatch(1L, "a.txt", 0, "Outro assunto.", 0.2)));
 
-		RagAnswer answer = ragService.ask(7L, "Qual o prazo de reembolso?", null, null);
+		RagAnswer answer = ragService.ask(7L, "Qual o prazo de reembolso?", null, null, null);
 
 		assertThat(answer.found()).isFalse();
 		assertThat(answer.answer()).isEqualTo(RagService.NOT_FOUND_ANSWER);
@@ -82,11 +83,11 @@ class RagServiceTest {
 
 	@Test
 	void shouldCapTopKAtConfiguredMaximum() {
-		given(chunkStore.search(eq(7L), eq(queryVector), eq(20), any())).willReturn(List.of());
+		given(chunkStore.search(eq(7L), eq(queryVector), eq("fake"), eq(20), any())).willReturn(List.of());
 
-		ragService.ask(7L, "pergunta", 50, List.of(12L));
+		ragService.ask(7L, "pergunta", 50, List.of(12L), null);
 
-		verify(chunkStore).search(7L, queryVector, 20, List.of(12L));
+		verify(chunkStore).search(7L, queryVector, "fake", 20, List.of(12L));
 	}
 
 }
