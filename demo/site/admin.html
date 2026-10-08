@@ -17,18 +17,45 @@
       </div>
     </div>
 
-    <form id="admin-key-form" class="key-form" autocomplete="off">
-      <label for="admin-key">Chave de administrador</label>
+    <form id="login-form" class="key-form" autocomplete="on">
+      <label for="admin-email">Acesso administrativo</label>
       <div class="inline">
-        <input id="admin-key" type="password" placeholder="IA_SERVICE_ADMIN_KEY" spellcheck="false">
-        <button type="submit">Conectar</button>
+        <input id="admin-email" type="email" placeholder="E-mail" autocomplete="username" required>
+        <input id="admin-password" type="password" placeholder="Senha" autocomplete="current-password" required>
+        <button type="submit">Entrar</button>
       </div>
     </form>
+    <div id="admin-session" class="key-form" hidden>
+      <span id="admin-identity"></span>
+      <button type="button" id="logout" class="secondary">Sair</button>
+    </div>
   </header>
 
   <div id="alert" class="alert" role="alert" hidden></div>
 
-  <main class="admin">
+  <main id="first-access" class="admin" hidden>
+    <section class="panel" aria-labelledby="password-title">
+      <h2 id="password-title">Troca obrigatória da senha</h2>
+      <p class="hint">Por segurança, defina uma nova senha antes de acessar o portal administrativo.</p>
+      <form id="password-form" class="stack" novalidate>
+        <div class="stack">
+          <label for="current-password">Senha atual</label>
+          <input id="current-password" type="password" autocomplete="current-password" required>
+        </div>
+        <div class="stack">
+          <label for="new-password">Nova senha</label>
+          <input id="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+        </div>
+        <div class="stack">
+          <label for="confirm-password">Confirme a nova senha</label>
+          <input id="confirm-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+        </div>
+        <div><button type="submit" id="password-submit">Trocar senha e continuar</button></div>
+      </form>
+    </section>
+  </main>
+
+  <main id="admin-content" class="admin" hidden>
     <section class="panel" aria-labelledby="create-title">
       <h2 id="create-title">Novo cliente</h2>
       <form id="client-form" class="stack" novalidate>
@@ -94,10 +121,10 @@
   </main>
 
   <footer class="footer">
-    A chave de administrador fica apenas nesta aba do navegador (sessionStorage) e é enviada no header <code>X-API-Key</code>.
-    Página de demonstração: em produção, o cadastro deve ficar atrás de um acesso restrito.
+    A sessão administrativa fica apenas nesta aba do navegador e expira automaticamente.
+    As senhas são armazenadas somente como hash no serviço.
   </footer>
 
-  <script type="module" src="admin.js"></script>
+  <script type="module" src="admin-portal.js"></script>
 </body>
 </html>

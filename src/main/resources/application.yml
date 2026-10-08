@@ -46,6 +46,9 @@ spring:
 
 ia-service:
   admin-key: ${IA_SERVICE_ADMIN_KEY}
+  admin-access:
+    # Sessões opacas do portal; a troca da senha inicial revoga todas as sessões anteriores.
+    session-ttl: ${ADMIN_SESSION_TTL:12h}
   providers:
     # Usado quando nem a requisição nem o cliente escolhem um provedor
     default-provider: ${AI_DEFAULT_PROVIDER:gemini}

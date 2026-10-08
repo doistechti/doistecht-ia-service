@@ -10,6 +10,7 @@ import br.com.doistecht.iaservice.exception.GlobalExceptionHandler;
 import br.com.doistecht.iaservice.ratelimit.RateLimitDecision;
 import br.com.doistecht.iaservice.ratelimit.RateLimitService;
 import br.com.doistecht.iaservice.security.ApiKeyFilter;
+import br.com.doistecht.iaservice.security.admin.AdminAccessService;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import({ ApiKeyFilter.class, GlobalExceptionHandler.class })
 @EnableConfigurationProperties(IaServiceProperties.class)
 @TestPropertySource(properties = "ia-service.admin-key=" + ApiControllerTestSupport.ADMIN_KEY)
-@MockitoBean(types = { ClientAuthenticator.class, RateLimitService.class })
+@MockitoBean(types = { ClientAuthenticator.class, RateLimitService.class, AdminAccessService.class })
 abstract class ApiControllerTestSupport {
 
 	static final String CLIENT_KEY = "dtia_chave-de-teste";

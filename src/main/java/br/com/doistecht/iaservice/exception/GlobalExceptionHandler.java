@@ -7,6 +7,8 @@ import br.com.doistecht.iaservice.document.InvalidDocumentException;
 import br.com.doistecht.iaservice.gateway.UnknownProviderException;
 import br.com.doistecht.iaservice.provider.AiProviderException;
 import br.com.doistecht.iaservice.ratelimit.RateLimitExceededException;
+import br.com.doistecht.iaservice.security.admin.AdminAuthenticationException;
+import br.com.doistecht.iaservice.security.admin.InvalidPasswordException;
 import br.com.doistecht.iaservice.structured.InvalidSchemaException;
 import br.com.doistecht.iaservice.structured.InvalidStructuredOutputException;
 import br.com.doistecht.iaservice.template.MissingVariablesException;
@@ -35,6 +37,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(AdminAuthenticationException.class)
+	ProblemDetail handleAdminAuthentication(AdminAuthenticationException ex) {
+		return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+	}
 
 	/**
 	 * {@code 503} quando o provedor está fora do ar (vale tentar mais tarde);
@@ -87,7 +94,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	@ExceptionHandler({ InvalidSchemaException.class, InvalidPeriodException.class, InvalidDocumentException.class,
-			UnknownProviderException.class })
+			UnknownProviderException.class, InvalidPasswordException.class })
 	ProblemDetail handleBadRequest(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}

@@ -5,8 +5,21 @@ Referência de uso de todas as rotas, com exemplos em `curl`. A documentação i
 
 Todas as rotas `/v1/**` exigem o header `X-API-Key`:
 
-- rotas `/v1/admin/**`: chave de administrador (`IA_SERVICE_ADMIN_KEY`);
+- rotas `/v1/admin/**`: chave de administrador (`IA_SERVICE_ADMIN_KEY`) ou sessão do portal administrativo (veja abaixo);
 - demais rotas: API key do cliente.
+
+## Acesso administrativo
+
+O portal administrativo entra com e-mail e senha. O login devolve um token de sessão, enviado depois no header `Authorization: Bearer <token>` em qualquer rota `/v1/admin/**`. A sessão expira em 12 h (`ADMIN_SESSION_TTL`).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `POST` | `/v1/admin/auth/login` | Autentica com `{"email", "password"}` e devolve `{token, expiresAt, user}` |
+| `GET` | `/v1/admin/auth/me` | Administrador da sessão atual |
+| `POST` | `/v1/admin/auth/change-password` | Troca a senha com `{"currentPassword", "newPassword"}`, encerra as outras sessões e devolve uma nova |
+| `POST` | `/v1/admin/auth/logout` | Encerra a sessão atual |
+
+Enquanto a senha inicial não for trocada (`user.mustChangePassword: true`), as demais rotas de admin respondem `403`. A nova senha deve ter de 12 a 128 caracteres.
 
 ## Cadastrando um cliente
 

@@ -74,7 +74,7 @@ curl -X POST http://localhost:8080/v1/admin/clients \
   -d '{"name": "meu-projeto"}'
 ```
 
-Ou use a tela de cadastro em **http://localhost:8088/admin.html**: informe a chave de administrador, preencha o formulário e clique em "Usar na demo" para já entrar com a chave gerada.
+Ou use o portal administrativo em **http://localhost:8088/admin.html**: entre com e-mail e senha (no primeiro acesso a troca da senha é obrigatória), preencha o formulário e clique em "Usar na demo" para já entrar com a chave gerada.
 
 Abra a demo em **http://localhost:8088**, cole a API key do cliente e use.
 
