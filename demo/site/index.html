@@ -3,130 +3,220 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>doistecht AI Gateway · Demo</title>
+  <title>doistech AI Gateway · Demo</title>
   <meta name="description" content="Projeto cliente de demonstração do doistecht-ia-service">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="demo.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">✦</span>
-      <div>
-        <h1>doistecht AI Gateway</h1>
-        <p class="subtitle">Projeto cliente de demonstração · <a href="admin.html">cadastrar cliente</a></p>
+  <div class="shell">
+    <aside class="sidebar">
+      <img src="img/logo-doistech-branca.png" alt="doistech" class="logo">
+      <p class="sidebar-label">AI Gateway · Demo</p>
+      <nav class="nav" role="tablist" aria-label="Funcionalidades" aria-orientation="vertical">
+        <button type="button" class="nav-item active" role="tab" aria-selected="true" aria-controls="tab-chat" id="t-chat">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+          Chat
+        </button>
+        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-tasks" id="t-tasks">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" /></svg>
+          Tarefas
+        </button>
+        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-structured" id="t-structured">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2" /></svg>
+          JSON estruturado
+        </button>
+        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-rag" id="t-rag">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6" /></svg>
+          Documentos (RAG)
+        </button>
+        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-controls="tab-usage" id="t-usage">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></svg>
+          Uso e custos
+        </button>
+      </nav>
+      <a href="admin.html" class="nav-item nav-secondary">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" /></svg>
+        Painel admin
+      </a>
+      <div class="sidebar-user">
+        <div class="avatar" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M15 7a3 3 0 1 1-2.8 4H4v3M8 11v3" /></svg>
+        </div>
+        <div class="user-info">
+          <span id="key-label">Sem API key</span>
+          <small id="key-status">Conecte um cliente</small>
+        </div>
       </div>
+    </aside>
+
+    <div class="content">
+      <!-- Conexão -->
+      <section class="card connection" aria-label="Conexão com o gateway">
+        <form id="key-form" class="field" autocomplete="off">
+          <label for="api-key">API key do cliente</label>
+          <div class="key-row">
+            <input id="api-key" type="password" placeholder="dtia_..." spellcheck="false">
+            <button type="submit" class="btn btn-primary">Conectar</button>
+          </div>
+        </form>
+        <div class="field">
+          <label for="provider">Provedor</label>
+          <select id="provider">
+            <option value="">Automático (padrão do gateway)</option>
+          </select>
+        </div>
+        <div class="connection-status">
+          <ul id="provider-status" class="provider-status"></ul>
+          <p id="limits" class="limits" aria-live="polite"></p>
+        </div>
+      </section>
+
+      <div id="alert" class="alert" role="alert" hidden></div>
+
+      <!-- Chat com streaming -->
+      <section id="tab-chat" role="tabpanel" aria-labelledby="t-chat" class="view">
+        <header class="page-head">
+          <div>
+            <h1>Chat</h1>
+            <p class="muted">A resposta chega em partes (streaming), e o histórico da conversa é enviado a cada mensagem.</p>
+          </div>
+          <div class="actions">
+            <button type="button" id="chat-clear" class="btn btn-ghost">Nova conversa</button>
+          </div>
+        </header>
+        <div class="card chat">
+          <div id="messages" class="messages" aria-live="polite">
+            <p class="empty">Envie uma mensagem para começar.</p>
+          </div>
+          <form id="chat-form" class="composer">
+            <label class="sr-only" for="chat-input">Mensagem</label>
+            <textarea id="chat-input" rows="2" placeholder="Escreva uma mensagem… (Enter envia, Shift+Enter quebra linha)" required></textarea>
+            <button type="submit" id="chat-send" class="btn btn-primary">Enviar</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Tarefas prontas -->
+      <section id="tab-tasks" role="tabpanel" aria-labelledby="t-tasks" class="view" hidden>
+        <header class="page-head">
+          <div>
+            <h1>Tarefas</h1>
+            <p class="muted">Templates de prompt prontos, versionados no gateway.</p>
+          </div>
+        </header>
+        <div class="card">
+          <form id="task-form" class="form-stack">
+            <div class="field">
+              <label for="task-template">Template</label>
+              <select id="task-template"></select>
+              <small id="task-description" class="muted"></small>
+            </div>
+            <div id="task-fields" class="form-stack"></div>
+            <div><button type="submit" class="btn btn-primary">Executar tarefa</button></div>
+          </form>
+          <div id="task-result" class="result" hidden></div>
+        </div>
+      </section>
+
+      <!-- Output estruturado -->
+      <section id="tab-structured" role="tabpanel" aria-labelledby="t-structured" class="view" hidden>
+        <header class="page-head">
+          <div>
+            <h1>JSON estruturado</h1>
+            <p class="muted">Extrai dados de um texto no formato definido por um JSON Schema.</p>
+          </div>
+        </header>
+        <div class="card">
+          <form id="structured-form" class="form-stack">
+            <div class="field">
+              <label for="structured-input">Texto de entrada</label>
+              <textarea id="structured-input" rows="3" required>Maria Oliveira, 41 anos, engenheira de dados, mora em Belo Horizonte e fala inglês e espanhol.</textarea>
+            </div>
+            <div class="field">
+              <label for="structured-schema">JSON Schema da resposta</label>
+              <textarea id="structured-schema" rows="10" class="mono" required></textarea>
+            </div>
+            <div><button type="submit" class="btn btn-primary">Extrair dados</button></div>
+          </form>
+          <div id="structured-result" class="result" hidden></div>
+        </div>
+      </section>
+
+      <!-- Documentos e RAG -->
+      <section id="tab-rag" role="tabpanel" aria-labelledby="t-rag" class="view" hidden>
+        <header class="page-head">
+          <div>
+            <h1>Documentos (RAG)</h1>
+            <p class="muted">Envie documentos e faça perguntas: a resposta usa só os trechos mais relevantes.</p>
+          </div>
+        </header>
+        <div class="card">
+          <div class="card-head"><h2>Documentos</h2></div>
+          <form id="upload-form" class="field upload">
+            <label for="upload-file">Enviar documento (PDF, TXT ou MD, até 10 MB)</label>
+            <div class="key-row">
+              <input id="upload-file" type="file" accept=".pdf,.txt,.md" required>
+              <button type="submit" class="btn btn-dark">Enviar</button>
+            </div>
+          </form>
+        </div>
+        <div class="card table-card">
+          <table class="table">
+            <caption class="sr-only">Documentos do cliente</caption>
+            <thead>
+              <tr><th scope="col">Arquivo</th><th scope="col">Situação</th><th scope="col" class="num">Trechos</th><th scope="col"><span class="sr-only">Ações</span></th></tr>
+            </thead>
+            <tbody id="documents"></tbody>
+          </table>
+        </div>
+        <div class="card">
+          <form id="rag-form" class="field">
+            <label for="rag-question">Pergunta sobre os documentos</label>
+            <div class="key-row">
+              <input id="rag-question" type="text" placeholder="Ex.: Qual o prazo de reembolso?" required>
+              <button type="submit" class="btn btn-primary">Perguntar</button>
+            </div>
+          </form>
+          <div id="rag-result" class="result" hidden></div>
+        </div>
+      </section>
+
+      <!-- Uso -->
+      <section id="tab-usage" role="tabpanel" aria-labelledby="t-usage" class="view" hidden>
+        <header class="page-head">
+          <div>
+            <h1>Uso e custos</h1>
+            <p class="muted">Consumo deste cliente nos últimos 30 dias.</p>
+          </div>
+          <div class="actions">
+            <span class="chip">Últimos 30 dias</span>
+            <button type="button" id="usage-refresh" class="btn btn-ghost">Atualizar</button>
+          </div>
+        </header>
+        <div class="hero card">
+          <div class="hero-main">
+            <span class="eyebrow">Custo estimado</span>
+            <strong id="usage-cost" class="hero-value">—</strong>
+            <span id="usage-cost-usd" class="hero-usd"></span>
+            <small>Calculado em dólares pela tabela de preços de cada modelo e convertido pela cotação do dia. No plano gratuito do Gemini o custo real é zero.</small>
+          </div>
+          <div class="hero-side">
+            <span class="eyebrow">Média por chamada</span>
+            <strong id="usage-avg">—</strong>
+            <span class="eyebrow">Taxa de sucesso</span>
+            <strong id="usage-success">—</strong>
+          </div>
+        </div>
+        <div id="usage" class="stats"></div>
+      </section>
+
+      <footer class="footer">
+        A API key fica apenas nesta aba do navegador (sessionStorage) e é enviada no header <code>X-API-Key</code>.
+        Página de demonstração: em produção, a chave deve ficar no servidor do projeto cliente.
+      </footer>
     </div>
-
-    <form id="key-form" class="key-form" autocomplete="off">
-      <label for="api-key">API key do cliente</label>
-      <div class="inline">
-        <input id="api-key" type="password" placeholder="dtia_..." spellcheck="false">
-        <button type="submit">Conectar</button>
-      </div>
-    </form>
-  </header>
-
-  <section class="providers" aria-label="Provedores de IA">
-    <label for="provider">Provedor</label>
-    <select id="provider">
-      <option value="">Automático (padrão do gateway)</option>
-    </select>
-    <ul id="provider-status" class="provider-status"></ul>
-    <p id="limits" class="limits" aria-live="polite"></p>
-  </section>
-
-  <nav class="tabs" role="tablist" aria-label="Funcionalidades">
-    <button role="tab" aria-selected="true" aria-controls="tab-chat" id="t-chat">Chat</button>
-    <button role="tab" aria-selected="false" aria-controls="tab-tasks" id="t-tasks">Tarefas</button>
-    <button role="tab" aria-selected="false" aria-controls="tab-structured" id="t-structured">JSON estruturado</button>
-    <button role="tab" aria-selected="false" aria-controls="tab-rag" id="t-rag">Documentos (RAG)</button>
-    <button role="tab" aria-selected="false" aria-controls="tab-usage" id="t-usage">Uso</button>
-  </nav>
-
-  <div id="alert" class="alert" role="alert" hidden></div>
-
-  <main>
-    <!-- Chat com streaming -->
-    <section id="tab-chat" role="tabpanel" aria-labelledby="t-chat" class="panel">
-      <div id="messages" class="messages" aria-live="polite">
-        <p class="empty">Converse com o modelo. A resposta chega em partes (streaming), e o histórico da conversa é enviado a cada mensagem.</p>
-      </div>
-      <form id="chat-form" class="composer">
-        <label class="sr-only" for="chat-input">Mensagem</label>
-        <textarea id="chat-input" rows="2" placeholder="Escreva uma mensagem…" required></textarea>
-        <div class="composer-actions">
-          <button type="button" id="chat-clear" class="secondary">Nova conversa</button>
-          <button type="submit" id="chat-send">Enviar</button>
-        </div>
-      </form>
-    </section>
-
-    <!-- Tarefas prontas -->
-    <section id="tab-tasks" role="tabpanel" aria-labelledby="t-tasks" class="panel" hidden>
-      <form id="task-form" class="stack">
-        <label for="task-template">Template</label>
-        <select id="task-template"></select>
-        <p id="task-description" class="hint"></p>
-        <div id="task-fields" class="stack"></div>
-        <button type="submit">Executar tarefa</button>
-      </form>
-      <div id="task-result" class="result" hidden></div>
-    </section>
-
-    <!-- Output estruturado -->
-    <section id="tab-structured" role="tabpanel" aria-labelledby="t-structured" class="panel" hidden>
-      <form id="structured-form" class="stack">
-        <label for="structured-input">Texto de entrada</label>
-        <textarea id="structured-input" rows="3" required>Maria Oliveira, 41 anos, engenheira de dados, mora em Belo Horizonte e fala inglês e espanhol.</textarea>
-        <label for="structured-schema">JSON Schema da resposta</label>
-        <textarea id="structured-schema" rows="10" class="mono" required></textarea>
-        <button type="submit">Extrair dados</button>
-      </form>
-      <div id="structured-result" class="result" hidden></div>
-    </section>
-
-    <!-- Documentos e RAG -->
-    <section id="tab-rag" role="tabpanel" aria-labelledby="t-rag" class="panel" hidden>
-      <form id="upload-form" class="upload">
-        <label for="upload-file">Enviar documento (PDF, TXT ou MD, até 10 MB)</label>
-        <div class="inline">
-          <input id="upload-file" type="file" accept=".pdf,.txt,.md" required>
-          <button type="submit">Enviar</button>
-        </div>
-      </form>
-
-      <table class="documents">
-        <caption class="sr-only">Documentos do cliente</caption>
-        <thead>
-          <tr><th scope="col">Arquivo</th><th scope="col">Situação</th><th scope="col">Trechos</th><th scope="col"><span class="sr-only">Ações</span></th></tr>
-        </thead>
-        <tbody id="documents"></tbody>
-      </table>
-
-      <form id="rag-form" class="stack">
-        <label for="rag-question">Pergunta sobre os documentos</label>
-        <div class="inline">
-          <input id="rag-question" type="text" placeholder="Ex.: Qual o prazo de reembolso?" required>
-          <button type="submit">Perguntar</button>
-        </div>
-      </form>
-      <div id="rag-result" class="result" hidden></div>
-    </section>
-
-    <!-- Uso -->
-    <section id="tab-usage" role="tabpanel" aria-labelledby="t-usage" class="panel" hidden>
-      <div class="usage-header">
-        <p class="hint">Consumo deste cliente nos últimos 30 dias.</p>
-        <button type="button" id="usage-refresh" class="secondary">Atualizar</button>
-      </div>
-      <div id="usage" class="tiles"></div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    A API key fica apenas nesta aba do navegador (sessionStorage) e é enviada no header <code>X-API-Key</code>.
-    Página de demonstração: em produção, a chave deve ficar no servidor do projeto cliente.
-  </footer>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>

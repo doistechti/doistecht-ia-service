@@ -155,10 +155,10 @@ async function run(button, action) {
 
 function badges(result) {
   const list = [];
-  if (result.provider) list.push(el("span", { class: "badge", text: `provedor: ${result.provider}` }));
-  if (result.model) list.push(el("span", { class: "badge", text: `modelo: ${result.model}` }));
-  if (result.fallback) list.push(el("span", { class: "badge warn", text: "resposta do provedor/modelo reserva" }));
-  return el("div", { class: "badges" }, list);
+  if (result.provider) list.push(el("span", { class: "chip", text: `provedor: ${result.provider}` }));
+  if (result.model) list.push(el("span", { class: "chip", text: `modelo: ${result.model}` }));
+  if (result.fallback) list.push(el("span", { class: "chip warn", text: "resposta do provedor/modelo reserva" }));
+  return el("div", { class: "tags" }, list);
 }
 
 // ---------- abas ----------
@@ -170,15 +170,24 @@ function setupTabs() {
       for (const other of tabs) {
         const selected = other === tab;
         other.setAttribute("aria-selected", String(selected));
+        other.classList.toggle("active", selected);
         document.getElementById(other.getAttribute("aria-controls")).hidden = !selected;
       }
       if (tab.id === "t-rag") loadDocuments();
       if (tab.id === "t-usage") loadUsage();
+      window.scrollTo(0, 0);
     });
   }
 }
 
 // ---------- provedores ----------
+
+// Resumo da conexão no rodapé da barra lateral (só o início da chave, nunca ela inteira)
+function renderConnection(connected) {
+  $(".sidebar-user").classList.toggle("connected", connected);
+  $("#key-label").textContent = state.apiKey ? `${state.apiKey.slice(0, 12)}…` : "Sem API key";
+  $("#key-status").textContent = connected ? "Conectado" : state.apiKey ? "Não conectado" : "Conecte um cliente";
+}
 
 async function loadProviders() {
   const statusList = $("#provider-status");
@@ -188,6 +197,7 @@ async function loadProviders() {
   if (!state.apiKey) return;
 
   const providers = await (await api("/v1/providers")).json();
+  renderConnection(true);
   for (const provider of providers) {
     const roles = [provider.defaultProvider && "padrão", provider.fallbackProvider && "reserva"].filter(Boolean);
     const label = `${provider.name} (${provider.models.chatModel})${roles.length ? " · " + roles.join(", ") : ""}`;
@@ -297,7 +307,7 @@ function renderTaskFields() {
       ? el("textarea", { id, rows: "4", name: field.name })
       : el("input", { id, type: "text", name: field.name });
     input.value = field.value;
-    return el("div", { class: "stack" }, el("label", { for: id, text: field.label }), input);
+    return el("div", { class: "field" }, el("label", { for: id, text: field.label }), input);
   }));
 }
 
@@ -374,7 +384,7 @@ async function loadDocuments() {
 
 function renderDocuments(documents) {
   const rows = documents.map((doc) => {
-    const remove = el("button", { class: "link", type: "button", text: "Apagar" });
+    const remove = el("button", { class: "btn btn-danger", type: "button", text: "Apagar" });
     remove.addEventListener("click", () => run(remove, async () => {
       await api(`/v1/documents/${doc.id}`, { method: "DELETE" });
       await loadDocuments();
@@ -384,8 +394,8 @@ function renderDocuments(documents) {
     return el("tr", {},
       el("td", { text: doc.fileName }),
       el("td", {}, status, doc.errorMessage ? el("span", { class: "status-detail", text: doc.errorMessage }) : null),
-      el("td", { text: doc.chunkCount ?? "–" }),
-      el("td", {}, remove));
+      el("td", { class: "num", text: doc.chunkCount ?? "–" }),
+      el("td", { class: "num" }, remove));
   });
   $("#documents").replaceChildren(...(rows.length
     ? rows
@@ -432,22 +442,52 @@ function setupRag() {
 
 // ---------- uso ----------
 
+const RATE_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL";
+const number = new Intl.NumberFormat("pt-BR");
+const percent = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 });
+// Os custos costumam ficar em frações de centavo
+const dollars = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 6 });
+const reais = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 6 });
+const rateFormat = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 4 });
+const dateTimeFormat = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+// Cotação do dólar em reais; sem ela os custos ficam em dólar
+async function loadRate() {
+  try {
+    const response = await fetch(RATE_URL);
+    if (!response.ok) return null;
+    const { USDBRL } = await response.json();
+    const value = Number(USDBRL.bid);
+    return value > 0 ? { value, at: new Date(Number(USDBRL.timestamp) * 1000) } : null;
+  } catch {
+    return null;
+  }
+}
+
+function stat(label, value) {
+  return el("div", { class: "stat" }, el("div", { class: "label", text: label }), el("div", { class: "value", text: value }));
+}
+
 async function loadUsage() {
   if (!state.apiKey) return;
   try {
-    const { totals } = await (await api("/v1/usage")).json();
-    const number = new Intl.NumberFormat("pt-BR");
-    const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "USD", maximumFractionDigits: 4 });
-    const tiles = [
-      ["Chamadas", number.format(totals.calls)],
-      ["Com sucesso", number.format(totals.successfulCalls)],
-      ["Do cache", number.format(totals.cacheHits)],
-      ["Tokens de entrada", number.format(totals.promptTokens)],
-      ["Tokens de saída", number.format(totals.outputTokens)],
-      ["Custo estimado", money.format(totals.estimatedCost)],
-    ];
-    $("#usage").replaceChildren(...tiles.map(([label, value]) =>
-      el("div", { class: "tile" }, el("div", { class: "label", text: label }), el("div", { class: "value", text: value }))));
+    const [{ totals }, rate] = await Promise.all([api("/v1/usage").then((response) => response.json()), loadRate()]);
+    const calls = Number(totals.calls);
+    const usd = Number(totals.estimatedCost);
+    const cost = (value) => (rate ? reais.format(value * rate.value) : dollars.format(value));
+
+    $("#usage-cost").textContent = cost(usd);
+    $("#usage-cost-usd").textContent = rate
+      ? `${dollars.format(usd)} · US$ 1 = ${rateFormat.format(rate.value)} em ${dateTimeFormat.format(rate.at)}`
+      : "Cotação do dólar indisponível no momento";
+    $("#usage-avg").textContent = calls ? cost(usd / calls) : "—";
+    $("#usage-success").textContent = calls ? percent.format(totals.successfulCalls / calls) : "—";
+    $("#usage").replaceChildren(
+      stat("Chamadas", number.format(calls)),
+      stat("Com sucesso", number.format(totals.successfulCalls)),
+      stat("Do cache", number.format(totals.cacheHits)),
+      stat("Tokens de entrada", number.format(totals.promptTokens)),
+      stat("Tokens de saída", number.format(totals.outputTokens)));
   } catch (error) {
     showError(error.message);
   }
@@ -461,6 +501,7 @@ function setupKeyForm() {
     event.preventDefault();
     state.apiKey = $("#api-key").value.trim();
     storeKey(state.apiKey);
+    renderConnection(false);
     if (state.apiKey && !state.apiKey.startsWith(CLIENT_KEY_PREFIX)) {
       showError(`Essa não parece ser a API key de um cliente. ${CLIENT_KEY_HINT}`);
       return;
@@ -476,4 +517,5 @@ setupTasks();
 setupStructured();
 setupRag();
 $("#usage-refresh").addEventListener("click", loadUsage);
+renderConnection(false);
 if (state.apiKey) loadProviders().catch((error) => showError(error.message));
