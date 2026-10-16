@@ -3,127 +3,217 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>doistecht AI Gateway · Clientes</title>
-  <meta name="description" content="Cadastro dos projetos clientes do doistecht-ia-service">
-  <link rel="stylesheet" href="styles.css">
+  <title>doistech AI Gateway · Admin</title>
+  <meta name="description" content="Painel administrativo do doistecht-ia-service">
+  <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">✦</span>
+  <!-- Login -->
+  <div id="login-view" class="auth">
+    <aside class="auth-brand">
+      <img src="img/logo-doistech-branca.png" alt="doistech" class="logo logo-lg">
       <div>
-        <h1>doistecht AI Gateway</h1>
-        <p class="subtitle">Administração · clientes · <a href="index.html">voltar para a demo</a></p>
+        <h1>AI Gateway</h1>
+        <p>Gestão de clientes, limites e custos de uso da IA.</p>
       </div>
-    </div>
+      <p class="auth-foot">Sessão restrita a administradores.</p>
+    </aside>
+    <main class="auth-main">
+      <form id="login-form" class="auth-card" autocomplete="on">
+        <h2>Entrar no painel</h2>
+        <p class="muted">Use seu e-mail e senha de administrador.</p>
+        <div class="field">
+          <label for="admin-email">E-mail</label>
+          <input id="admin-email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="admin-password">Senha</label>
+          <input id="admin-password" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+      </form>
 
-    <form id="login-form" class="key-form" autocomplete="on">
-      <label for="admin-email">Acesso administrativo</label>
-      <div class="inline">
-        <input id="admin-email" type="email" placeholder="E-mail" autocomplete="username" required>
-        <input id="admin-password" type="password" placeholder="Senha" autocomplete="current-password" required>
-        <button type="submit">Entrar</button>
-      </div>
-    </form>
-    <div id="admin-session" class="key-form" hidden>
-      <span id="admin-identity"></span>
-      <button type="button" id="logout" class="secondary">Sair</button>
-    </div>
-  </header>
-
-  <div id="alert" class="alert" role="alert" hidden></div>
-
-  <main id="first-access" class="admin" hidden>
-    <section class="panel" aria-labelledby="password-title">
-      <h2 id="password-title">Troca obrigatória da senha</h2>
-      <p class="hint">Por segurança, defina uma nova senha antes de acessar o portal administrativo.</p>
-      <form id="password-form" class="stack" novalidate>
-        <div class="stack">
+      <form id="password-form" class="auth-card" novalidate hidden>
+        <h2>Troque sua senha</h2>
+        <p class="muted">Por segurança, defina uma nova senha antes de acessar o painel.</p>
+        <div class="field">
           <label for="current-password">Senha atual</label>
           <input id="current-password" type="password" autocomplete="current-password" required>
         </div>
-        <div class="stack">
+        <div class="field">
           <label for="new-password">Nova senha</label>
           <input id="new-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+          <small class="muted">De 12 a 128 caracteres.</small>
         </div>
-        <div class="stack">
+        <div class="field">
           <label for="confirm-password">Confirme a nova senha</label>
           <input id="confirm-password" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
         </div>
-        <div><button type="submit" id="password-submit">Trocar senha e continuar</button></div>
-      </form>
-    </section>
-  </main>
-
-  <main id="admin-content" class="admin" hidden>
-    <section class="panel" aria-labelledby="create-title">
-      <h2 id="create-title">Novo cliente</h2>
-      <form id="client-form" class="stack" novalidate>
-        <div class="stack">
-          <label for="client-name">Nome do projeto</label>
-          <input id="client-name" name="name" type="text" maxlength="100" placeholder="portal-atendimento" required>
-        </div>
-        <div class="grid-3">
-          <div class="stack">
-            <label for="client-rate">Requisições por minuto</label>
-            <input id="client-rate" name="rateLimitPerMinute" type="number" min="1" max="10000" placeholder="10">
-          </div>
-          <div class="stack">
-            <label for="client-quota">Requisições por dia</label>
-            <input id="client-quota" name="dailyQuota" type="number" min="1" max="1000000" placeholder="200">
-          </div>
-          <div class="stack">
-            <label for="client-provider">Provedor padrão</label>
-            <select id="client-provider" name="defaultProvider">
-              <option value="">Padrão do gateway</option>
-              <option value="gemini">gemini</option>
-              <option value="ollama">ollama</option>
-            </select>
-          </div>
-        </div>
-        <p class="hint">Campos de limite em branco usam o padrão (10 por minuto e 200 por dia).</p>
-        <div>
-          <button type="submit" id="client-submit">Cadastrar cliente</button>
-        </div>
+        <button type="submit" id="password-submit" class="btn btn-primary btn-block">Trocar senha e continuar</button>
+        <button type="button" class="btn btn-ghost btn-block js-logout">Sair</button>
       </form>
 
-      <div id="created" class="result" hidden aria-live="polite">
-        <p class="hint">Cliente <strong id="created-name"></strong> cadastrado. Guarde a API key agora: ela não será exibida de novo.</p>
-        <div class="inline">
-          <label class="sr-only" for="created-key">API key gerada</label>
-          <input id="created-key" type="text" class="mono" readonly>
-          <button type="button" id="copy-key" class="secondary">Copiar</button>
-          <button type="button" id="use-key">Usar na demo</button>
+      <div id="login-alert" class="alert auth-alert" role="alert" hidden></div>
+    </main>
+  </div>
+
+  <!-- Painel -->
+  <div id="app-view" class="shell" hidden>
+    <aside class="sidebar">
+      <img src="img/logo-doistech-branca.png" alt="doistech" class="logo">
+      <p class="sidebar-label">AI Gateway</p>
+      <nav class="nav" aria-label="Seções">
+        <a href="#" class="nav-item active" id="nav-clients" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+          Clientes
+        </a>
+        <a href="index.html" class="nav-item">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" /></svg>
+          Demo da API
+        </a>
+      </nav>
+      <div class="sidebar-user">
+        <div class="avatar" id="admin-avatar" aria-hidden="true"></div>
+        <div class="user-info">
+          <span id="admin-email-label"></span>
+          <small id="admin-role-label"></small>
         </div>
+        <button type="button" class="icon-btn js-logout" title="Sair" aria-label="Sair">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10" /></svg>
+        </button>
       </div>
-    </section>
+    </aside>
 
-    <section class="panel" aria-labelledby="list-title">
-      <div class="usage-header">
-        <h2 id="list-title">Clientes cadastrados</h2>
-        <button type="button" id="clients-refresh" class="secondary">Atualizar</button>
-      </div>
-      <table class="documents">
-        <caption class="sr-only">Clientes cadastrados</caption>
-        <thead>
-          <tr>
-            <th scope="col">Nome</th>
-            <th scope="col">Chave</th>
-            <th scope="col">Por minuto</th>
-            <th scope="col">Por dia</th>
-            <th scope="col">Provedor</th>
-            <th scope="col">Situação</th>
-          </tr>
-        </thead>
-        <tbody id="clients"></tbody>
-      </table>
-    </section>
-  </main>
+    <div class="content">
+      <div id="alert" class="alert" role="alert" hidden></div>
 
-  <footer class="footer">
-    A sessão administrativa fica apenas nesta aba do navegador e expira automaticamente.
-    As senhas são armazenadas somente como hash no serviço.
-  </footer>
+      <!-- Lista de clientes -->
+      <section id="clients-view">
+        <header class="page-head">
+          <div>
+            <h1>Clientes</h1>
+            <p class="muted">Projetos que consomem o gateway. Clique em um cliente para ver uso e custos.</p>
+          </div>
+          <div class="actions">
+            <button type="button" id="clients-refresh" class="btn btn-ghost">Atualizar</button>
+            <button type="button" id="new-client" class="btn btn-primary">+ Novo cliente</button>
+          </div>
+        </header>
+
+        <div class="stats" id="clients-stats"></div>
+
+        <div id="create-panel" class="card" hidden>
+          <div class="card-head">
+            <h2>Novo cliente</h2>
+            <button type="button" id="create-close" class="icon-btn" aria-label="Fechar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+          <form id="client-form" novalidate>
+            <div class="form-grid">
+              <div class="field span-all">
+                <label for="client-name">Nome do projeto</label>
+                <input id="client-name" type="text" maxlength="100" placeholder="portal-atendimento" required>
+              </div>
+              <div class="field">
+                <label for="client-rate">Requisições por minuto</label>
+                <input id="client-rate" type="number" min="1" max="10000" placeholder="10">
+              </div>
+              <div class="field">
+                <label for="client-quota">Requisições por dia</label>
+                <input id="client-quota" type="number" min="1" max="1000000" placeholder="200">
+              </div>
+              <div class="field">
+                <label for="client-provider">Provedor padrão</label>
+                <select id="client-provider">
+                  <option value="">Padrão do gateway</option>
+                  <option value="gemini">gemini</option>
+                  <option value="ollama">ollama</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-foot">
+              <small class="muted">Limites em branco usam o padrão: 10 por minuto e 200 por dia.</small>
+              <button type="submit" id="client-submit" class="btn btn-primary">Cadastrar cliente</button>
+            </div>
+          </form>
+
+          <div id="created" class="key-box" hidden aria-live="polite">
+            <p>Cliente <strong id="created-name"></strong> cadastrado. Guarde a API key agora: ela não será exibida de novo.</p>
+            <div class="key-row">
+              <label class="sr-only" for="created-key">API key gerada</label>
+              <input id="created-key" type="text" class="mono" readonly>
+              <button type="button" id="copy-key" class="btn btn-dark">Copiar</button>
+              <button type="button" id="use-key" class="btn btn-ghost">Usar na demo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card table-card">
+          <table class="table">
+            <caption class="sr-only">Clientes cadastrados</caption>
+            <thead>
+              <tr>
+                <th scope="col">Cliente</th>
+                <th scope="col">Chave</th>
+                <th scope="col" class="num">Por minuto</th>
+                <th scope="col" class="num">Por dia</th>
+                <th scope="col">Provedor</th>
+                <th scope="col">Situação</th>
+                <th scope="col"><span class="sr-only">Abrir</span></th>
+              </tr>
+            </thead>
+            <tbody id="clients"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Detalhe do cliente -->
+      <section id="client-view" hidden>
+        <nav class="breadcrumb" aria-label="Caminho">
+          <a href="#" id="client-back">Clientes</a>
+          <span aria-hidden="true">/</span>
+          <span id="crumb-name"></span>
+        </nav>
+        <header class="page-head">
+          <div>
+            <h1 id="client-title"></h1>
+            <p class="muted" id="client-meta"></p>
+          </div>
+          <div class="actions">
+            <span class="chip">Últimos 30 dias</span>
+            <button type="button" id="usage-refresh" class="btn btn-ghost">Atualizar</button>
+          </div>
+        </header>
+
+        <div class="hero card">
+          <div class="hero-main">
+            <span class="eyebrow">Custo estimado</span>
+            <strong id="usage-cost" class="hero-value">—</strong>
+            <span id="usage-cost-usd" class="hero-usd"></span>
+            <small>Calculado em dólares pela tabela de preços de cada modelo e convertido pela cotação do dia. No plano gratuito do Gemini o custo real é zero.</small>
+          </div>
+          <div class="hero-side">
+            <span class="eyebrow">Média por chamada</span>
+            <strong id="usage-avg">—</strong>
+            <span class="eyebrow">Taxa de sucesso</span>
+            <strong id="usage-success">—</strong>
+          </div>
+        </div>
+
+        <div id="usage" class="stats"></div>
+
+        <div class="card">
+          <div class="card-head"><h2>Configuração</h2></div>
+          <dl class="config" id="client-config"></dl>
+        </div>
+      </section>
+
+      <footer class="footer">
+        A sessão administrativa fica apenas nesta aba do navegador e expira automaticamente.
+      </footer>
+    </div>
+  </div>
 
   <script type="module" src="admin-portal.js"></script>
 </body>
