@@ -6,6 +6,7 @@ import br.com.doistecht.iaservice.document.DocumentNotFoundException;
 import br.com.doistecht.iaservice.document.InvalidDocumentException;
 import br.com.doistecht.iaservice.gateway.UnknownProviderException;
 import br.com.doistecht.iaservice.provider.AiProviderException;
+import br.com.doistecht.iaservice.provider.UnsupportedCapabilityException;
 import br.com.doistecht.iaservice.ratelimit.RateLimitExceededException;
 import br.com.doistecht.iaservice.security.admin.AdminAuthenticationException;
 import br.com.doistecht.iaservice.security.admin.InvalidPasswordException;
@@ -94,7 +95,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	}
 
 	@ExceptionHandler({ InvalidSchemaException.class, InvalidPeriodException.class, InvalidDocumentException.class,
-			UnknownProviderException.class, InvalidPasswordException.class })
+			UnknownProviderException.class, UnsupportedCapabilityException.class, InvalidPasswordException.class })
 	ProblemDetail handleBadRequest(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 	}

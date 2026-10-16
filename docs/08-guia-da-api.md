@@ -245,7 +245,7 @@ Erros seguem o formato `ProblemDetail` (RFC 9457):
 
 ## Escolhendo o provedor de IA
 
-As rotas de chat, streaming, output estruturado, tarefas, RAG e embeddings aceitam o campo opcional `provider` (`gemini` ou `ollama`). A escolha segue esta ordem:
+As rotas de chat, streaming, output estruturado, tarefas, RAG e embeddings aceitam o campo opcional `provider` (`gemini`, `ollama` ou `maritaca`). A Maritaca não faz embeddings: em `/v1/embeddings`, `provider: "maritaca"` devolve `400`. A escolha segue esta ordem:
 
 1. o `provider` enviado na requisição;
 2. o provedor padrão do cliente (`defaultProvider`, definido pelo admin);

@@ -13,7 +13,7 @@ public record TaskRequest(
 		@Size(max = 50)
 		Map<String, @NotNull @Size(max = 20_000) String> variables,
 
-		@Schema(description = "Provedor de IA (opcional): gemini ou ollama. Sem ele, usa o padrão do cliente ou o global, "
+		@Schema(description = "Provedor de IA (opcional): gemini, ollama ou maritaca. Sem ele, usa o padrão do cliente ou o global, "
 				+ "com troca automática para o provedor reserva se o escolhido estiver fora do ar.", example = "gemini")
 		@Pattern(regexp = "[a-z0-9-]{1,30}", message = "nome de provedor inválido")
 		String provider) {

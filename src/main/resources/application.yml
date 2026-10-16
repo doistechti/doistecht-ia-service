@@ -60,6 +60,13 @@ ia-service:
     embedding-model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
     connect-timeout: 2s
     read-timeout: ${OLLAMA_TIMEOUT:120s}
+  maritaca:
+    enabled: ${MARITACA_ENABLED:false}
+    api-key: ${MARITACA_API_KEY:}
+    chat-model: ${MARITACA_CHAT_MODEL:sabiazinho-4}
+    # Modelo reserva da própria Maritaca (ex.: sabia-4); vazio desativa
+    fallback-chat-model: ${MARITACA_FALLBACK_MODEL:}
+    read-timeout: ${MARITACA_TIMEOUT:60s}
   gemini:
     timeout: ${GEMINI_TIMEOUT:30s}
     # Modelo reserva, usado quando o principal está fora do ar ou sem cota; vazio desativa

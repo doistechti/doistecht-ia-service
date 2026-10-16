@@ -18,7 +18,7 @@ Os projetos clientes não chamam o provedor de IA diretamente: falam com este se
 | **Multi-tenant** | API key por projeto cliente (guardada só como hash), rate limit por minuto e cota diária |
 | **Custo e uso** | Cache de respostas por cliente, registro de tokens, latência e custo estimado de cada chamada |
 | **Resiliência** | Timeout, retry só para erros transitórios, circuit breaker por modelo, modelo reserva e provedor reserva |
-| **Provedores** | Gemini (Google AI Studio) e Ollama (modelos locais), com escolha por requisição ou por cliente |
+| **Provedores** | Gemini (Google AI Studio), Maritaca (Sabiá, em português) e Ollama (modelos locais), com escolha por requisição ou por cliente |
 | **Observabilidade** | Métricas no Prometheus e dashboard pronto no Grafana |
 
 ## Arquitetura
@@ -37,14 +37,17 @@ flowchart LR
         core["Gateway\nroteamento · cache · uso · métricas"]
         gem["GeminiProvider"]
         oll["OllamaProvider"]
+        mar["MaritacaProvider"]
         auth --> api --> core
         core --> gem
         core --> oll
+        core --> mar
     end
 
     demo & app1 & app2 -- "X-API-Key" --> auth
     gem --> gemini[("Google Gemini")]
     oll --> ollama[("Ollama\nlocal")]
+    mar --> maritaca[("Maritaca\nSabiá")]
     gateway --- pg[("PostgreSQL\n+ pgvector")]
     gateway --- redis[("Redis")]
     gateway -. métricas .-> prom["Prometheus"] --> graf["Grafana"]
@@ -87,6 +90,8 @@ Abra a demo em **http://localhost:8088**, cole a API key do cliente e use.
 | Health e métricas (Actuator) | http://localhost:8081/actuator/health (só em localhost) |
 
 **Ollama (opcional):** para usar modelos locais, descomente `COMPOSE_PROFILES=ollama` e `OLLAMA_ENABLED=true` no `.env` e rode `docker compose up -d` de novo. Na primeira vez são baixados cerca de 2,5 GB (llama3.2:3b e nomic-embed-text). Com o Ollama ligado, ele vira o provedor reserva quando o Gemini cai.
+
+**Maritaca (opcional):** para usar os modelos Sabiá, treinados em português, preencha `MARITACA_API_KEY` (criada em [plataforma.maritaca.ai](https://plataforma.maritaca.ai)) e `MARITACA_ENABLED=true` no `.env`. O modelo padrão é o `sabiazinho-4`. Ele atende chat, streaming, tarefas, JSON estruturado e as respostas do RAG quando a requisição ou o cliente escolhem `"provider": "maritaca"`. A Maritaca não faz embeddings: os documentos continuam indexados pelo `RAG_EMBEDDING_PROVIDER`.
 
 O guia completo da API, com exemplos de todas as rotas, está em **[docs/08-guia-da-api.md](docs/08-guia-da-api.md)**. As mesmas chamadas estão prontas em [`requests.http`](requests.http).
 
@@ -145,6 +150,7 @@ As principais decisões, com o contexto e as alternativas consideradas, estão r
 - [RAG próprio com pgvector em SQL](docs/adr/0005-rag-com-pgvector-em-sql.md)
 - [Embeddings pelo SDK do Google](docs/adr/0006-embeddings-pelo-sdk-do-google.md)
 - [Roteamento e fallback entre provedores](docs/adr/0007-roteamento-entre-provedores.md)
+- [Maritaca chamada direto por HTTP](docs/adr/0008-maritaca-por-http.md)
 
 ## Estrutura
 
@@ -152,7 +158,7 @@ As principais decisões, com o contexto e as alternativas consideradas, estão r
 src/main/java/br/com/doistecht/iaservice
 ├── api          # controllers e DTOs (/v1)
 ├── gateway      # roteamento de provedores, cache, registro de uso
-├── provider     # contratos, resiliência e provedores (gemini/, ollama/)
+├── provider     # contratos, resiliência e provedores (gemini/, ollama/, maritaca/)
 ├── client       # clientes (tenants) e API keys
 ├── ratelimit    # rate limit e cota diária
 ├── template     # templates de prompt versionados
