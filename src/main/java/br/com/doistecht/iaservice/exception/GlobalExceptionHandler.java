@@ -1,5 +1,6 @@
 package br.com.doistecht.iaservice.exception;
 
+import br.com.doistecht.iaservice.client.ApiKeyUnavailableException;
 import br.com.doistecht.iaservice.client.ClientAlreadyExistsException;
 import br.com.doistecht.iaservice.client.ClientNotFoundException;
 import br.com.doistecht.iaservice.document.DocumentNotFoundException;
@@ -81,8 +82,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
 	}
 
-	@ExceptionHandler(ClientAlreadyExistsException.class)
-	ProblemDetail handleClientAlreadyExists(ClientAlreadyExistsException ex) {
+	@ExceptionHandler({ ClientAlreadyExistsException.class, ApiKeyUnavailableException.class })
+	ProblemDetail handleConflict(RuntimeException ex) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
 	}
 

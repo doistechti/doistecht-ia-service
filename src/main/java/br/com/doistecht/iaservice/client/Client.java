@@ -9,8 +9,8 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * Projeto que consome o gateway. A API key nunca é guardada: apenas o hash
- * (para autenticar) e o prefixo (para identificar a chave em logs e telas).
+ * Projeto que consome o gateway. A autenticação usa o hash da API key; o prefixo identifica a chave
+ * em logs e telas, e a versão criptografada (opcional) permite exibi-la de novo no portal.
  */
 @Entity
 @Table(name = "client")
@@ -28,6 +28,10 @@ public class Client {
 
 	@Column(nullable = false, length = 16)
 	private String apiKeyPrefix;
+
+	/** API key criptografada pelo {@link ApiKeyCipher}; {@code null} quando não pode ser recuperada. */
+	@Column(length = 255)
+	private String apiKeyEncrypted;
 
 	@Column(nullable = false)
 	private int rateLimitPerMinute;
@@ -57,8 +61,13 @@ public class Client {
 	}
 
 	public void replaceApiKey(ApiKey apiKey) {
+		replaceApiKey(apiKey, null);
+	}
+
+	public void replaceApiKey(ApiKey apiKey, String encryptedKey) {
 		this.apiKeyHash = apiKey.hash();
 		this.apiKeyPrefix = apiKey.prefix();
+		this.apiKeyEncrypted = encryptedKey;
 	}
 
 	public Long getId() {
@@ -75,6 +84,10 @@ public class Client {
 
 	public String getApiKeyPrefix() {
 		return apiKeyPrefix;
+	}
+
+	public String getApiKeyEncrypted() {
+		return apiKeyEncrypted;
 	}
 
 	public int getRateLimitPerMinute() {

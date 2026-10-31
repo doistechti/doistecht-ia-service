@@ -16,11 +16,14 @@ public class ClientService {
 
 	private final ProviderRouter providerRouter;
 
+	private final ApiKeyCipher cipher;
+
 	public ClientService(ClientRepository repository, ClientAuthenticator authenticator,
-			ProviderRouter providerRouter) {
+			ProviderRouter providerRouter, ApiKeyCipher cipher) {
 		this.repository = repository;
 		this.authenticator = authenticator;
 		this.providerRouter = providerRouter;
+		this.cipher = cipher;
 	}
 
 	/** Cliente recém-criado ou com chave rotacionada, junto da chave em texto puro. */
@@ -53,6 +56,7 @@ public class ClientService {
 		requireAvailable(defaultProvider);
 		ApiKey apiKey = ApiKey.generate();
 		Client client = new Client(name, apiKey, rateLimitPerMinute, dailyQuota);
+		client.replaceApiKey(apiKey, cipher.encrypt(apiKey).orElse(null));
 		client.setDefaultProvider(defaultProvider);
 		return new ClientWithKey(repository.save(client), apiKey);
 	}
@@ -70,10 +74,22 @@ public class ClientService {
 	public ClientWithKey rotateKey(Long id) {
 		Client client = get(id);
 		ApiKey apiKey = ApiKey.generate();
-		client.replaceApiKey(apiKey);
+		client.replaceApiKey(apiKey, cipher.encrypt(apiKey).orElse(null));
 		repository.flush();
 		authenticator.invalidateAll();
 		return new ClientWithKey(client, apiKey);
+	}
+
+	/** Chave completa do cliente, para o portal exibir; só existe para chaves geradas com a criptografia ativa. */
+	public String revealKey(Long id) {
+		Client client = get(id);
+		return cipher.decrypt(client.getApiKeyEncrypted(), client.getApiKeyHash())
+				.orElseThrow(() -> new ApiKeyUnavailableException(id));
+	}
+
+	/** Se a chave do cliente pode ser exibida de novo. */
+	public boolean isKeyAvailable(Client client) {
+		return cipher.isEnabled() && client.getApiKeyEncrypted() != null;
 	}
 
 	@Transactional

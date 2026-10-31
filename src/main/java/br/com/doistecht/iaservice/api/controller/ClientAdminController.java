@@ -1,10 +1,13 @@
 package br.com.doistecht.iaservice.api.controller;
 
+import br.com.doistecht.iaservice.api.dto.ClientApiKeyResponse;
 import br.com.doistecht.iaservice.api.dto.ClientCreateRequest;
 import br.com.doistecht.iaservice.api.dto.ClientKeyResponse;
 import br.com.doistecht.iaservice.api.dto.ClientResponse;
 import br.com.doistecht.iaservice.api.dto.ClientUpdateRequest;
+import br.com.doistecht.iaservice.client.Client;
 import br.com.doistecht.iaservice.client.ClientService;
+import br.com.doistecht.iaservice.client.ClientService.ClientWithKey;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,7 +34,7 @@ public class ClientAdminController {
 	}
 
 	@Operation(summary = "Cadastra um cliente e gera sua API key",
-			description = "A chave completa só é exibida nesta resposta.")
+			description = "A chave completa vem nesta resposta e, com a criptografia de chaves ativa, também em GET /{id}/api-key.")
 	@PostMapping
 	public ResponseEntity<ClientKeyResponse> create(@Valid @RequestBody ClientCreateRequest request) {
 		var created = clientService.create(request.name(), request.rateLimitPerMinuteOrDefault(),
@@ -40,32 +43,48 @@ public class ClientAdminController {
 				.path("/{id}")
 				.buildAndExpand(created.client().getId())
 				.toUri();
-		return ResponseEntity.created(location).body(ClientKeyResponse.from(created));
+		return ResponseEntity.created(location).body(withKey(created));
 	}
 
 	@Operation(summary = "Lista os clientes")
 	@GetMapping
 	public List<ClientResponse> list() {
-		return clientService.list().stream().map(ClientResponse::from).toList();
+		return clientService.list().stream().map(this::response).toList();
 	}
 
 	@Operation(summary = "Detalha um cliente")
 	@GetMapping("/{id}")
 	public ClientResponse get(@PathVariable Long id) {
-		return ClientResponse.from(clientService.get(id));
+		return response(clientService.get(id));
 	}
 
 	@Operation(summary = "Altera limites ou ativa/desativa o cliente")
 	@PatchMapping("/{id}")
 	public ClientResponse update(@PathVariable Long id, @Valid @RequestBody ClientUpdateRequest request) {
-		return ClientResponse.from(clientService.update(id, request.toChanges()));
+		return response(clientService.update(id, request.toChanges()));
 	}
 
 	@Operation(summary = "Gera uma nova API key; a anterior deixa de funcionar",
-			description = "A chave completa só é exibida nesta resposta.")
+			description = "A chave completa vem nesta resposta e, com a criptografia de chaves ativa, também em GET /{id}/api-key.")
 	@PostMapping("/{id}/rotate-key")
 	public ClientKeyResponse rotateKey(@PathVariable Long id) {
-		return ClientKeyResponse.from(clientService.rotateKey(id));
+		return withKey(clientService.rotateKey(id));
+	}
+
+	@Operation(summary = "Exibe a API key completa do cliente",
+			description = "Disponível para chaves geradas com IA_SERVICE_ENCRYPTION_KEY configurada; "
+					+ "as anteriores respondem 409 até uma nova chave ser gerada.")
+	@GetMapping("/{id}/api-key")
+	public ClientApiKeyResponse apiKey(@PathVariable Long id) {
+		return new ClientApiKeyResponse(clientService.revealKey(id));
+	}
+
+	private ClientResponse response(Client client) {
+		return ClientResponse.from(client, clientService.isKeyAvailable(client));
+	}
+
+	private ClientKeyResponse withKey(ClientWithKey created) {
+		return ClientKeyResponse.from(created, clientService.isKeyAvailable(created.client()));
 	}
 
 }

@@ -139,6 +139,9 @@ Variáveis são escritas como `{nome}` nos textos do template. Versões nunca s�
 | `GET` | `/v1/admin/clients/{id}` | Detalha um cliente |
 | `PATCH` | `/v1/admin/clients/{id}` | Altera limites ou ativa/desativa (`{"active": false}`) |
 | `POST` | `/v1/admin/clients/{id}/rotate-key` | Gera nova chave; a anterior para de funcionar |
+| `GET` | `/v1/admin/clients/{id}/api-key` | Exibe a chave completa (`{"apiKey": "dtia_..."}`); `409` se ela foi gerada sem `IA_SERVICE_ENCRYPTION_KEY` |
+
+Com `IA_SERVICE_ENCRYPTION_KEY` configurada, as chaves geradas no cadastro e na rotação também são guardadas criptografadas (AES-256-GCM) e podem ser exibidas de novo. A autenticação continua pelo hash. O campo `apiKeyAvailable` da resposta dos clientes indica se a chave pode ser exibida; chaves anteriores à configuração precisam ser rotacionadas uma vez.
 
 Templates também podem pertencer a um cliente (campo `clientId` na criação). Um template do cliente com o mesmo nome de um template global o substitui para aquele cliente.
 

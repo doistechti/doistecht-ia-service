@@ -64,7 +64,57 @@ class ClientAdminIT extends AbstractMockedProviderIT {
 		mockMvc.perform(get("/v1/admin/clients/{id}", id).header(ApiKeyFilter.HEADER, ADMIN_KEY))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.apiKey").doesNotExist())
-				.andExpect(jsonPath("$.apiKeyPrefix").value(apiKey.substring(0, 12)));
+				.andExpect(jsonPath("$.apiKeyPrefix").value(apiKey.substring(0, 12)))
+				.andExpect(jsonPath("$.apiKeyAvailable").value(true));
+	}
+
+	@Test
+	void shouldRevealStoredKeyEncrypted() throws Exception {
+		TestClient client = createClient();
+
+		mockMvc.perform(get("/v1/admin/clients/{id}/api-key", client.id()).header(ApiKeyFilter.HEADER, ADMIN_KEY))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.apiKey").value(client.apiKey()));
+
+		// Guardada criptografada, nunca em texto puro
+		Client stored = clientRepository.findById(client.id()).orElseThrow();
+		org.assertj.core.api.Assertions.assertThat(stored.getApiKeyEncrypted())
+				.startsWith("v1:")
+				.doesNotContain(client.apiKey());
+	}
+
+	@Test
+	void shouldRevealNewKeyAfterRotation() throws Exception {
+		TestClient client = createClient();
+		String response = mockMvc.perform(post("/v1/admin/clients/{id}/rotate-key", client.id())
+						.header(ApiKeyFilter.HEADER, ADMIN_KEY))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		String newKey = JsonPath.read(response, "$.apiKey");
+
+		mockMvc.perform(get("/v1/admin/clients/{id}/api-key", client.id()).header(ApiKeyFilter.HEADER, ADMIN_KEY))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.apiKey").value(newKey));
+	}
+
+	@Test
+	void shouldReturnConflictWhenKeyWasNotStored() throws Exception {
+		// Cliente anterior à criptografia: só hash e prefixo no banco
+		ApiKey legacyKey = ApiKey.generate();
+		Client legacy = clientRepository.save(new Client("legado-" + UUID.randomUUID(), legacyKey, 10, 200));
+
+		mockMvc.perform(get("/v1/admin/clients/{id}", legacy.getId()).header(ApiKeyFilter.HEADER, ADMIN_KEY))
+				.andExpect(jsonPath("$.apiKeyAvailable").value(false));
+		mockMvc.perform(get("/v1/admin/clients/{id}/api-key", legacy.getId()).header(ApiKeyFilter.HEADER, ADMIN_KEY))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void shouldNotRevealKeyToClients() throws Exception {
+		TestClient client = createClient();
+
+		mockMvc.perform(get("/v1/admin/clients/{id}/api-key", client.id()).header(ApiKeyFilter.HEADER, client.apiKey()))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test

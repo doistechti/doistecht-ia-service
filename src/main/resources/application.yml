@@ -46,6 +46,9 @@ spring:
 
 ia-service:
   admin-key: ${IA_SERVICE_ADMIN_KEY}
+  api-key-encryption:
+    # AES-256 em Base64 (openssl rand -base64 32): permite exibir de novo as API keys no portal; vazio desativa
+    key: ${IA_SERVICE_ENCRYPTION_KEY:}
   admin-access:
     # Sessões opacas do portal; a troca da senha inicial revoga todas as sessões anteriores.
     session-ttl: ${ADMIN_SESSION_TTL:12h}

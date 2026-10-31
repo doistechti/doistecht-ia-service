@@ -7,11 +7,11 @@ public record ClientKeyResponse(
 
 		ClientResponse client,
 
-		@Schema(description = "API key completa. É exibida apenas nesta resposta: guarde-a em local seguro.")
+		@Schema(description = "API key completa. Depois desta resposta, só pode ser obtida de novo pelo admin quando apiKeyAvailable for true.")
 		String apiKey) {
 
-	public static ClientKeyResponse from(ClientWithKey created) {
-		return new ClientKeyResponse(ClientResponse.from(created.client()), created.apiKey().value());
+	public static ClientKeyResponse from(ClientWithKey created, boolean apiKeyAvailable) {
+		return new ClientKeyResponse(ClientResponse.from(created.client(), apiKeyAvailable), created.apiKey().value());
 	}
 
 }

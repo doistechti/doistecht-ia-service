@@ -24,6 +24,7 @@ import org.testcontainers.utility.DockerImageName;
 @SpringBootTest(properties = {
 		"spring.ai.google.genai.api-key=test-gemini-key",
 		"ia-service.admin-key=" + AbstractIntegrationTest.ADMIN_KEY,
+		"ia-service.api-key-encryption.key=" + AbstractIntegrationTest.ENCRYPTION_KEY,
 		// Os embeddings falsos dos testes (FakeEmbeddings) têm similaridades menores que os reais
 		"ia-service.rag.min-score=0.1",
 		"ia-service.rag.embedding-batch-delay=0ms"
@@ -35,6 +36,9 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class AbstractIntegrationTest {
 
 	protected static final String ADMIN_KEY = "admin-key-de-teste";
+
+	// 32 bytes em Base64, só para os testes
+	protected static final String ENCRYPTION_KEY = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
 
 	// Containers "singleton": sobem uma vez por execução e são reaproveitados por todas as classes
 	// de teste, assim como o contexto do Spring. Com @Container eles seriam parados ao fim de cada
